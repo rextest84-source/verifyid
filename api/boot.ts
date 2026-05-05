@@ -4,7 +4,6 @@ import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
-import { env } from "./lib/env";
 import { createOAuthCallbackHandler } from "./kimi/auth";
 import { Paths } from "@contracts/constants";
 import { writeFile } from "fs/promises";
@@ -14,19 +13,14 @@ import path from "path";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
-// Serve uploaded ID documents publicly
 app.use("/uploads/*", serveStatic({ root: "./" }));
-
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
 app.get(Paths.oauthCallback, createOAuthCallbackHandler());
 
-// File upload endpoint for ID documents
 app.post("/api/upload", async (c) => {
   const body = await c.req.parseBody();
   const file = body.file as File;
-  if (!file) {
-    return c.json({ error: "No file uploaded" }, 400);
-  }
+  if (!file) return c.json({ error: "No file uploaded" }, 400);
   const uploadsDir = path.join(process.cwd(), "uploads");
   await mkdir(uploadsDir, { recursive: true });
   const fileName = `${Date.now()}-${file.name}`;
@@ -44,21 +38,28 @@ app.use("/api/trpc/*", async (c) => {
     createContext,
   });
 });
+
 app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
+
+// Serve static files from dist/public
+const distPath = path.resolve(process.cwd(), "dist/public");
+app.use("*", serveStatic({ root: "./dist/public" }));
+app.notFound((c) => {
+  const accept = c.req.header("accept") ?? "";
+  if (!accept.includes("text/html")) return c.json({ error: "Not Found" }, 404);
+  try {
+    const content = require("fs").readFileSync(path.resolve(distPath, "index.html"), "utf-8");
+    return c.html(content);
+  } catch {
+    return c.json({ error: "Frontend not built" }, 500);
+  }
+});
 
 export default app;
 
-// Start server (always — required for Railway)
-const { serve } = await import("@hono/node-server");
-const { serveStaticFiles } = await import("./lib/vite");
-serveStaticFiles(app);
-
+// Always start server
 const port = parseInt(process.env.PORT || "3000");
+const { serve } = await import("@hono/node-server");
 serve({ fetch: app.fetch, port }, () => {
   console.log(`Server running on port ${port}`);
 });
-
-// Keep old conditional for compatibility
-if (env.isProduction) {
-  console.log("Production mode confirmed");
-}
