@@ -49,7 +49,7 @@ export default function Home() {
               </div>
               <h3 className="font-semibold text-slate-100 mb-2">Liveness Check</h3>
               <p className="text-sm text-slate-400 leading-relaxed">
-                Blink and nod to prove you are real
+                Blink, turn, and hold — multi-step anti-spoof verification
               </p>
             </div>
             <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 hover:border-sky-500/30 transition-colors">

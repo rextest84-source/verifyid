@@ -137,7 +137,7 @@ export default function SubmitReview({ verificationId, name, email, onComplete }
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-slate-200">Liveness Check</p>
-            <p className="text-xs text-slate-500">Face detected, blink & nod verified</p>
+            <p className="text-xs text-slate-500">Blink, head pose, and hold challenges passed</p>
           </div>
           <Eye className="w-4 h-4 text-slate-600" />
         </div>

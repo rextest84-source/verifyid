@@ -1,11 +1,11 @@
-declare module 'face-api.js' {
+declare module "face-api.js" {
+  interface Net {
+    loadFromUri(uri: string): Promise<void>;
+  }
+
   export const nets: {
-    tinyFaceDetector: {
-      load(uri: string): Promise<void>;
-    };
-    faceLandmark68TinyNet: {
-      load(uri: string): Promise<void>;
-    };
+    tinyFaceDetector: Net;
+    faceLandmark68TinyNet: Net;
   };
 
   export class TinyFaceDetectorOptions {
@@ -22,30 +22,26 @@ declare module 'face-api.js' {
     score: number;
   }
 
-  export interface WithFaceDetection<T> {
-    detection: FaceDetection;
+  export interface FaceLandmarks {
+    positions: { x: number; y: number }[];
+    getLeftEye(): { x: number; y: number }[];
+    getRightEye(): { x: number; y: number }[];
+    getNose(): { x: number; y: number }[];
   }
 
   export interface WithFaceLandmarks<T> {
-    landmarks: {
-      positions: { x: number; y: number }[];
-      getLeftEye(): { x: number; y: number }[];
-      getRightEye(): { x: number; y: number }[];
-      getNose(): { x: number; y: number }[];
-    };
+    landmarks: FaceLandmarks;
   }
 
-  interface DetectFaceLandmarksTask<TResult> {
-    withFaceLandmarks(useTinyModel?: boolean): TResult;
+  interface DetectSingleFaceTask {
+    withFaceLandmarks(useTinyModel?: boolean): Promise<
+      | (WithFaceLandmarks<unknown> & { detection: FaceDetection })
+      | undefined
+    >;
   }
 
   export function detectSingleFace(
     input: HTMLVideoElement | HTMLCanvasElement | HTMLImageElement,
-    options?: TinyFaceDetectorOptions
-  ): any;
-
-  export const draw: {
-    drawDetections(canvas: HTMLCanvasElement, detections: FaceDetection | FaceDetection[]): void;
-    drawFaceLandmarks(canvas: HTMLCanvasElement, landmarks: any): void;
-  };
+    options?: TinyFaceDetectorOptions,
+  ): DetectSingleFaceTask;
 }
