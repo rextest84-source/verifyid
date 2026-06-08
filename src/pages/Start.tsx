@@ -46,8 +46,8 @@ export default function Start() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md">
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-8 w-full max-w-full overflow-x-hidden">
+      <div className="w-full max-w-md min-w-0">
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 flex items-center justify-center mx-auto mb-5 border border-violet-500/25 shadow-lg shadow-violet-500/10">
             <Shield className="w-8 h-8 text-violet-400" />
@@ -86,7 +86,7 @@ export default function Start() {
           </div>
 
           {error && (
-            <div className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">
+            <div className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2 break-words">
               {error}
             </div>
           )}
