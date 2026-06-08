@@ -1,3 +1,4 @@
+import { env } from "./lib/env";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
@@ -86,4 +87,9 @@ const port = parseInt(process.env.PORT || "3000");
 const { serve } = await import("@hono/node-server");
 serve({ fetch: app.fetch, port }, () => {
   console.log(`Server running on port ${port}`);
+  if (!env.resendApiKey) {
+    console.warn("[EMAIL] RESEND_API_KEY is not set — submission emails will not be sent");
+  } else {
+    console.log(`[EMAIL] Resend configured (from: ${env.resendFromEmail}, admin: ${env.adminNotificationEmail})`);
+  }
 });

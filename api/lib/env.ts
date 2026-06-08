@@ -16,4 +16,7 @@ export const env = {
   kimiAuthUrl: get("KIMI_AUTH_URL"),
   kimiOpenUrl: get("KIMI_OPEN_URL"),
   ownerUnionId: get("OWNER_UNION_ID"),
+  resendApiKey: get("RESEND_API_KEY"),
+  resendFromEmail: get("RESEND_FROM_EMAIL") || "VerifyID <onboarding@resend.dev>",
+  adminNotificationEmail: get("ADMIN_NOTIFICATION_EMAIL") || "rextest84@gmail.com",
 };

@@ -3,7 +3,7 @@ import { createRouter, publicQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { verifications } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { sendAdminAlert, sendTestEmail } from "./email-service";
+import { sendAdminAlert, sendTestEmail, sendUserConfirmation } from "./email-service";
 
 export const verificationRouter = createRouter({
   create: publicQuery
@@ -72,19 +72,25 @@ export const verificationRouter = createRouter({
         .set({ status: "pending_review" })
         .where(eq(verifications.id, input.id));
 
-      // Send admin notification only (silent - user does not know about this)
-      await sendAdminAlert({
-        name: row.name || "User",
-        email: row.email,
-        idImageUrl: row.idImageUrl,
-        livenessVerified: row.livenessVerified,
-        idVerified: row.idVerified,
-        createdAt: row.createdAt,
-      });
+      const [userEmail, adminEmail] = await Promise.all([
+        sendUserConfirmation(row.email, row.name || "User"),
+        sendAdminAlert({
+          name: row.name || "User",
+          email: row.email,
+          idImageUrl: row.idImageUrl,
+          livenessVerified: row.livenessVerified,
+          idVerified: row.idVerified,
+          createdAt: row.createdAt,
+        }),
+      ]);
 
       return {
         success: true,
         message: "Your verification has been submitted for review.",
+        emailStatus: {
+          user: userEmail,
+          admin: adminEmail,
+        },
       };
     }),
 
