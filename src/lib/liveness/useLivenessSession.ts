@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LivenessChallengeEngine } from "./challengeEngine";
-import { CANVAS_HEIGHT, CANVAS_WIDTH, CHALLENGES, DETECTION_INTERVAL_MS } from "./constants";
+import {
+  BLINK_DETECTION_INTERVAL_MS,
+  CANVAS_HEIGHT,
+  CANVAS_WIDTH,
+  CHALLENGES,
+  DETECTION_INTERVAL_MS,
+} from "./constants";
 import { detectFace, loadFaceModels } from "./faceModels";
 import { renderLivenessFrame } from "./canvasRenderer";
 import { emptyMetrics } from "./geometry";
@@ -66,7 +72,7 @@ export function useLivenessSession(onComplete: () => void) {
   const challengeRef = useRef(INITIAL_CHALLENGE);
   const metricsRef = useRef(emptyMetrics());
   const detectingRef = useRef(false);
-  const detectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const detectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   onCompleteRef.current = onComplete;
 
   const [phase, setPhase] = useState<LivenessPhase>("idle");
@@ -87,7 +93,7 @@ export function useLivenessSession(onComplete: () => void) {
     faceRef.current = null;
     detectingRef.current = false;
     if (detectTimerRef.current) {
-      clearInterval(detectTimerRef.current);
+      clearTimeout(detectTimerRef.current);
       detectTimerRef.current = null;
     }
   }, []);
@@ -170,8 +176,13 @@ export function useLivenessSession(onComplete: () => void) {
 
     let running = true;
 
-    const runDetection = () => {
-      if (!running || detectingRef.current || !video.videoWidth) return;
+    const loopDetection = () => {
+      if (!running || !video.videoWidth) return;
+
+      if (detectingRef.current) {
+        detectTimerRef.current = setTimeout(loopDetection, 20);
+        return;
+      }
 
       detectingRef.current = true;
       void detectFace(video)
@@ -199,11 +210,16 @@ export function useLivenessSession(onComplete: () => void) {
         })
         .finally(() => {
           detectingRef.current = false;
+          if (!running) return;
+          const delay =
+            challengeRef.current.id === "blink"
+              ? BLINK_DETECTION_INTERVAL_MS
+              : DETECTION_INTERVAL_MS;
+          detectTimerRef.current = setTimeout(loopDetection, delay);
         });
     };
 
-    detectTimerRef.current = setInterval(runDetection, DETECTION_INTERVAL_MS);
-    runDetection();
+    loopDetection();
 
     const tick = (timestamp: number) => {
       if (!running) return;
@@ -230,7 +246,7 @@ export function useLivenessSession(onComplete: () => void) {
       running = false;
       cancelAnimationFrame(animRef.current);
       if (detectTimerRef.current) {
-        clearInterval(detectTimerRef.current);
+        clearTimeout(detectTimerRef.current);
         detectTimerRef.current = null;
       }
     };

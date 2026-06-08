@@ -2,8 +2,9 @@ import {
   ALIGN_FRAMES_REQUIRED,
   ALIGN_MIN_CENTERING,
   ALIGN_MIN_FACE_SCALE,
-  BLINK_CLOSED_RATIO,
-  BLINK_OPEN_RATIO,
+  BLINK_DROP_RATIO,
+  BLINK_MIN_DROP,
+  BLINK_RECOVER_RATIO,
   CHALLENGES,
   FACE_MISS_GRACE_FRAMES,
   HOLD_DURATION_MS,
@@ -19,18 +20,19 @@ import type {
   FrameMetrics,
 } from "./types";
 
-type BlinkPhase = "open" | "closing" | "closed";
-
 export class LivenessChallengeEngine {
   private index = 0;
   private alignFrames = 0;
   private turnFrames = 0;
-  private blinkPhase: BlinkPhase = "open";
   private holdStartedAt: number | null = null;
   private missedFaceFrames = 0;
   private lastProgress = 0;
-  private earBaseline = 0.28;
-  private earSamples: number[] = [];
+  /** Peak open-eye EAR while waiting for a blink. */
+  private blinkPeakEar = 0;
+  /** True once eyes drop below the blink threshold. */
+  private blinkSawClose = false;
+  /** Lowest EAR seen during the current blink attempt. */
+  private blinkLowEar = 1;
 
   reset(): void {
     this.index = 0;
@@ -140,44 +142,42 @@ export class LivenessChallengeEngine {
     snapshot: ChallengeSnapshot;
     metrics: FrameMetrics;
   } {
-    if (this.blinkPhase === "open") {
-      this.earSamples.push(metrics.ear);
-      if (this.earSamples.length > 12) this.earSamples.shift();
-      if (this.earSamples.length >= 3) {
-        const sorted = [...this.earSamples].sort((a, b) => a - b);
-        this.earBaseline = sorted[Math.floor(sorted.length / 2)];
+    const ear = metrics.ear;
+
+    if (!this.blinkSawClose) {
+      this.blinkPeakEar = Math.max(this.blinkPeakEar, ear);
+    }
+
+    const closeLine = this.blinkPeakEar * BLINK_DROP_RATIO;
+    const recoverLine = Math.max(
+      this.blinkPeakEar * BLINK_RECOVER_RATIO,
+      this.blinkLowEar + BLINK_MIN_DROP,
+    );
+
+    if (!this.blinkSawClose && this.blinkPeakEar > 0.1 && ear <= closeLine) {
+      this.blinkSawClose = true;
+      this.blinkLowEar = ear;
+    }
+
+    if (this.blinkSawClose) {
+      this.blinkLowEar = Math.min(this.blinkLowEar, ear);
+      const drop = this.blinkPeakEar - this.blinkLowEar;
+
+      if (drop >= BLINK_MIN_DROP && ear >= recoverLine) {
+        this.advance();
+        return {
+          snapshot: this.buildSnapshot(1, "Blink detected", true),
+          metrics,
+        };
       }
     }
 
-    const closedThreshold = this.earBaseline * BLINK_CLOSED_RATIO;
-    const openThreshold = this.earBaseline * BLINK_OPEN_RATIO;
-
-    if (metrics.ear < closedThreshold) {
-      if (this.blinkPhase === "open") this.blinkPhase = "closing";
-      if (this.blinkPhase === "closing") this.blinkPhase = "closed";
-    } else if (metrics.ear > openThreshold && this.blinkPhase === "closed") {
-      this.advance();
-      return {
-        snapshot: this.buildSnapshot(1, "Blink detected", true),
-        metrics,
-      };
-    } else if (metrics.ear > openThreshold && this.blinkPhase === "closing") {
-      this.blinkPhase = "open";
-    }
-
-    const progress =
-      this.blinkPhase === "closed"
-        ? 0.85
-        : this.blinkPhase === "closing"
-          ? 0.55
-          : 0.15;
-
-    const feedback =
-      this.blinkPhase === "closed"
-        ? "Great — open your eyes"
-        : this.blinkPhase === "closing"
-          ? "Eyes closing..."
-          : "Blink once, naturally";
+    const progress = !this.blinkSawClose ? 0.2 : ear >= recoverLine * 0.85 ? 0.75 : 0.55;
+    const feedback = !this.blinkSawClose
+      ? "Close your eyes briefly"
+      : ear < recoverLine
+        ? "Good — now open your eyes"
+        : "Blink once, naturally";
 
     return {
       snapshot: this.buildSnapshot(progress, feedback, false),
@@ -270,10 +270,10 @@ export class LivenessChallengeEngine {
   private resetCurrentChallenge(): void {
     this.alignFrames = 0;
     this.turnFrames = 0;
-    this.blinkPhase = "open";
     this.holdStartedAt = null;
-    this.earSamples = [];
-    this.earBaseline = 0.28;
+    this.blinkPeakEar = 0;
+    this.blinkSawClose = false;
+    this.blinkLowEar = 1;
   }
 
   private buildSnapshot(
