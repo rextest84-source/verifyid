@@ -6,21 +6,30 @@ export const FACE_API_WEIGHTS =
 export const CANVAS_WIDTH = 480;
 export const CANVAS_HEIGHT = 640;
 
-export const ALIGN_MIN_CENTERING = 0.38;
-export const ALIGN_MIN_FACE_SCALE = 0.14;
-export const ALIGN_FRAMES_REQUIRED = 4;
+/** How centered the face must be in frame (lower = more forgiving). */
+export const ALIGN_MIN_CENTERING = 0.3;
+/** How close the face must be (lower = more forgiving). */
+export const ALIGN_MIN_FACE_SCALE = 0.11;
+/** Smooth lock-in speed per good frame (higher = faster). */
+export const ALIGN_PROGRESS_GAIN = 0.14;
+/** How quickly align progress fades when face drifts (lower = less punishing). */
+export const ALIGN_PROGRESS_DECAY = 0.035;
 
-export const BLINK_DROP_RATIO = 0.85;
-export const BLINK_RECOVER_RATIO = 0.9;
-export const BLINK_MIN_DROP = 0.015;
+export const BLINK_DROP_RATIO = 0.88;
+export const BLINK_RECOVER_RATIO = 0.88;
+export const BLINK_MIN_DROP = 0.01;
 
-export const TURN_YAW_THRESHOLD = 0.08;
-export const TURN_FRAMES_REQUIRED = 4;
+/** Minimum head yaw to count as a turn (lower = smaller movement accepted). */
+export const TURN_YAW_THRESHOLD = 0.055;
+export const TURN_PROGRESS_GAIN = 0.22;
+export const TURN_PROGRESS_DECAY = 0.05;
 
-export const HOLD_DURATION_MS = 700;
-export const HOLD_MIN_CENTERING = 0.35;
+export const HOLD_DURATION_MS = 550;
+export const HOLD_MIN_CENTERING = 0.26;
+/** Brief wobbles during hold won't reset the timer. */
+export const HOLD_BREAK_GRACE_FRAMES = 10;
 
-export const FACE_MISS_GRACE_FRAMES = 18;
+export const FACE_MISS_GRACE_FRAMES = 35;
 
 /** Target gap between detection runs (ms) — ~30 fps. */
 export const DETECTION_TARGET_MS = 33;
@@ -33,31 +42,31 @@ export const CHALLENGES: readonly ChallengeConfig[] = [
   {
     id: "align",
     title: "Position",
-    instruction: "Center your face in the frame",
-    hint: "Move closer and align your eyes with the guide",
+    instruction: "Center your face in the oval",
+    hint: "Move slowly until the ring turns green — no rush",
   },
   {
     id: "blink",
     title: "Blink",
-    instruction: "Blink naturally once",
-    hint: "Close and open your eyes at a normal pace",
+    instruction: "Blink once, naturally",
+    hint: "A normal blink is all we need",
   },
   {
     id: "turn_left",
     title: "Turn Left",
     instruction: "Turn your head slightly left",
-    hint: "Keep your shoulders still — rotate only your head",
+    hint: "A small turn is enough — keep shoulders relaxed",
   },
   {
     id: "turn_right",
     title: "Turn Right",
     instruction: "Turn your head slightly right",
-    hint: "Look toward your right shoulder briefly",
+    hint: "Just a gentle turn toward your right shoulder",
   },
   {
     id: "hold",
     title: "Hold Still",
-    instruction: "Hold steady while we verify",
-    hint: "Keep your face centered for a moment",
+    instruction: "Hold steady for a moment",
+    hint: "Almost done — stay relaxed and look at the camera",
   },
 ] as const;

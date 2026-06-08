@@ -5,11 +5,27 @@ import type { RenderState } from "./types";
 const OVAL_RX = CANVAS_WIDTH * 0.31;
 const OVAL_RY = CANVAS_HEIGHT * 0.38;
 
-function challengeColor(progress: number, complete: boolean): string {
+type LockPhase = "searching" | "detecting" | "locking" | "locked";
+
+function getLockPhase(progress: number, hasFace: boolean): LockPhase {
+  if (!hasFace) return "searching";
+  if (progress >= 0.85) return "locked";
+  if (progress >= 0.35) return "locking";
+  return "detecting";
+}
+
+function lockColor(phase: LockPhase, complete: boolean): string {
   if (complete) return "#4ade80";
-  if (progress > 0.65) return "#38bdf8";
-  if (progress > 0.3) return "#fbbf24";
-  return "#94a3b8";
+  switch (phase) {
+    case "locked":
+      return "#4ade80";
+    case "locking":
+      return "#38bdf8";
+    case "detecting":
+      return "#7dd3fc";
+    default:
+      return "#94a3b8";
+  }
 }
 
 function drawVignette(ctx: CanvasRenderingContext2D, w: number, h: number) {
@@ -17,7 +33,7 @@ function drawVignette(ctx: CanvasRenderingContext2D, w: number, h: number) {
   const cy = h / 2;
 
   ctx.save();
-  ctx.fillStyle = "rgba(2, 6, 23, 0.5)";
+  ctx.fillStyle = "rgba(2, 6, 23, 0.42)";
   ctx.beginPath();
   ctx.rect(0, 0, w, h);
   ctx.ellipse(cx, cy, OVAL_RX * 1.08, OVAL_RY * 1.08, 0, 0, Math.PI * 2);
@@ -30,38 +46,55 @@ function drawGuideOval(
   w: number,
   h: number,
   progress: number,
+  phase: LockPhase,
   color: string,
   time: number,
 ) {
   const cx = w / 2;
   const cy = h / 2;
-  const pulse = 0.5 + 0.5 * Math.sin(time * 0.008);
+  const breathe = 0.5 + 0.5 * Math.sin(time * 0.004);
+  const pulse = phase === "locking" ? 1 + breathe * 0.02 : 1;
+  const rx = OVAL_RX * pulse;
+  const ry = OVAL_RY * pulse;
 
   ctx.save();
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 14 + pulse * 8;
-  ctx.strokeStyle = `${color}99`;
-  ctx.lineWidth = 2.5;
+
+  if (phase === "locked" || phase === "locking") {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = phase === "locked" ? 22 : 12 + breathe * 6;
+  }
+
+  ctx.strokeStyle = `${color}55`;
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.ellipse(cx, cy, OVAL_RX, OVAL_RY, 0, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   ctx.stroke();
 
   if (progress > 0) {
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = phase === "locked" ? 4 : 3;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.ellipse(cx, cy, OVAL_RX + 3, OVAL_RY + 3, -Math.PI / 2, 0, progress * Math.PI * 2);
+    ctx.ellipse(cx, cy, rx + 2, ry + 2, -Math.PI / 2, 0, progress * Math.PI * 2);
     ctx.stroke();
   }
+
+  if (phase === "locked") {
+    ctx.fillStyle = "rgba(74, 222, 128, 0.12)";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.restore();
 }
 
-function drawFaceTracking(
+function drawFaceGuidance(
   ctx: CanvasRenderingContext2D,
   state: RenderState,
   videoW: number,
   videoH: number,
+  lockPhase: LockPhase,
 ) {
   if (!state.face || state.phase !== "running") return;
 
@@ -72,111 +105,123 @@ function drawFaceTracking(
   const y = Math.min(tl.y, br.y);
   const bw = Math.abs(br.x - tl.x);
   const bh = Math.abs(br.y - tl.y);
+  const faceCx = (tl.x + br.x) / 2;
+  const faceCy = (tl.y + br.y) / 2;
 
-  ctx.save();
-  ctx.strokeStyle = "rgba(56, 189, 248, 0.55)";
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 4]);
-  ctx.strokeRect(x, y, bw, bh);
-  ctx.restore();
+  if (lockPhase === "locking" || lockPhase === "locked") {
+    const corner = 14;
+    const inset = 4;
+    ctx.save();
+    ctx.strokeStyle =
+      lockPhase === "locked" ? "rgba(74, 222, 128, 0.75)" : "rgba(56, 189, 248, 0.55)";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
 
-  const cx = CANVAS_WIDTH / 2;
-  const scanSpeed = 0.45;
-  const scanOffset = (state.timestamp * scanSpeed) % bh;
-  const scanY = y + scanOffset;
+    const corners: [number, number, number, number][] = [
+      [x + inset, y + inset + corner, x + inset, y + inset, x + inset + corner, y + inset],
+      [x + bw - inset - corner, y + inset, x + bw - inset, y + inset, x + bw - inset, y + inset + corner],
+      [x + inset, y + bh - inset - corner, x + inset, y + bh - inset, x + inset + corner, y + bh - inset],
+      [x + bw - inset - corner, y + bh - inset, x + bw - inset, y + bh - inset, x + bw - inset, y + bh - inset - corner],
+    ];
 
-  ctx.save();
-  const grad = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
-  grad.addColorStop(0, "rgba(56, 189, 248, 0)");
-  grad.addColorStop(0.5, "rgba(56, 189, 248, 0.5)");
-  grad.addColorStop(1, "rgba(56, 189, 248, 0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(x, scanY - 20, bw, 40);
-  ctx.restore();
+    for (const [x1, y1, x2, y2, x3, y3] of corners) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineTo(x3, y3);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
-  if (state.metrics.hasFace && state.metrics.centering < 0.5) {
-    const faceCx = (tl.x + br.x) / 2;
-    const faceCy = (tl.y + br.y) / 2;
+  if (state.metrics.hasFace && state.metrics.centering < 0.45 && lockPhase !== "locked") {
+    const cx = CANVAS_WIDTH / 2;
+    const cy = CANVAS_HEIGHT / 2;
     const dx = cx - faceCx;
-    const dy = CANVAS_HEIGHT / 2 - faceCy;
+    const dy = cy - faceCy;
     const len = Math.hypot(dx, dy) || 1;
-    const ax = faceCx + (dx / len) * 28;
-    const ay = faceCy + (dy / len) * 28;
+    const ax = faceCx + (dx / len) * 24;
+    const ay = faceCy + (dy / len) * 24;
 
     ctx.save();
-    ctx.fillStyle = "rgba(251, 191, 36, 0.9)";
+    ctx.fillStyle = "rgba(125, 211, 252, 0.85)";
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - (dx / len) * 10 - (dy / len) * 5, ay - (dy / len) * 10 + (dx / len) * 5);
-    ctx.lineTo(ax - (dx / len) * 10 + (dy / len) * 5, ay - (dy / len) * 10 - (dx / len) * 5);
+    ctx.lineTo(ax - (dx / len) * 8 - (dy / len) * 4, ay - (dy / len) * 8 + (dx / len) * 4);
+    ctx.lineTo(ax - (dx / len) * 8 + (dy / len) * 4, ay - (dy / len) * 8 - (dx / len) * 4);
     ctx.closePath();
     ctx.fill();
     ctx.restore();
   }
 }
 
-function drawSensorHud(ctx: CanvasRenderingContext2D, state: RenderState) {
-  const { sensors, challenge } = state;
-  const bars: { label: string; value: number; color: string }[] = [
-    { label: "CTR", value: sensors.centering, color: "#38bdf8" },
-    { label: "SCL", value: sensors.faceScale, color: "#22d3ee" },
-  ];
+function drawLockBadge(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  lockPhase: LockPhase,
+  feedback: string,
+) {
+  const labels: Record<LockPhase, string> = {
+    searching: "Looking for you...",
+    detecting: "Face found",
+    locking: "Locking in...",
+    locked: "Locked in",
+  };
 
-  if (challenge.id === "blink") {
-    bars.push({ label: "EYE", value: Math.min(1, sensors.ear / 0.35), color: "#a78bfa" });
-  }
-  if (challenge.id === "turn_left" || challenge.id === "turn_right") {
-    bars.push({
-      label: "YAW",
-      value: Math.min(1, Math.abs(sensors.yaw) / 0.25),
-      color: "#f472b6",
-    });
-  }
-
-  const x0 = 10;
-  let y = 52;
-  const barW = 4;
-  const barH = 36;
+  const label = lockPhase === "searching" ? labels.searching : feedback || labels[lockPhase];
+  const badgeColor =
+    lockPhase === "locked"
+      ? "rgba(74, 222, 128, 0.2)"
+      : lockPhase === "locking"
+        ? "rgba(56, 189, 248, 0.18)"
+        : "rgba(15, 23, 42, 0.72)";
 
   ctx.save();
-  ctx.font = "600 8px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.textAlign = "left";
+  ctx.font = "600 11px -apple-system, BlinkMacSystemFont, sans-serif";
+  const textW = ctx.measureText(label).width;
+  const padX = 12;
+  const badgeW = textW + padX * 2;
+  const badgeH = 26;
+  const bx = (w - badgeW) / 2;
+  const by = 14;
 
-  for (const bar of bars) {
-    ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
-    ctx.fillRect(x0, y, barW, barH);
-    ctx.fillStyle = bar.color;
-    ctx.fillRect(x0, y + barH * (1 - bar.value), barW, barH * bar.value);
-    ctx.fillStyle = "rgba(226, 232, 240, 0.7)";
-    ctx.fillText(bar.label, x0 + 7, y + barH - 4);
-    y += barH + 8;
+  ctx.fillStyle = badgeColor;
+  ctx.strokeStyle =
+    lockPhase === "locked"
+      ? "rgba(74, 222, 128, 0.45)"
+      : "rgba(148, 163, 184, 0.25)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, badgeW, badgeH, 13);
+  ctx.fill();
+  ctx.stroke();
+
+  if (lockPhase === "locked" || lockPhase === "locking") {
+    ctx.fillStyle = lockPhase === "locked" ? "#4ade80" : "#38bdf8";
+    ctx.beginPath();
+    ctx.arc(bx + 10, by + badgeH / 2, 3, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  const scanColor = sensors.isScanning ? "#4ade80" : sensors.faceDetected ? "#38bdf8" : "#64748b";
-  ctx.fillStyle = scanColor;
-  ctx.beginPath();
-  ctx.arc(x0 + 2, 36, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "rgba(226, 232, 240, 0.8)";
-  ctx.font = "700 9px -apple-system, sans-serif";
-  ctx.fillText(`${sensors.detectionsPerSec}/s`, x0 + 8, 39);
-
+  ctx.fillStyle = lockPhase === "locked" ? "#bbf7d0" : "#e2e8f0";
+  ctx.textAlign = "center";
+  ctx.fillText(label, w / 2 + (lockPhase === "locked" || lockPhase === "locking" ? 6 : 0), by + 17);
   ctx.restore();
 }
 
 function drawStatusBar(ctx: CanvasRenderingContext2D, w: number, h: number, text: string) {
   ctx.save();
-  const barH = 48;
+  const barH = 44;
   const grad = ctx.createLinearGradient(0, h - barH, 0, h);
   grad.addColorStop(0, "rgba(2, 6, 23, 0)");
-  grad.addColorStop(1, "rgba(2, 6, 23, 0.92)");
+  grad.addColorStop(1, "rgba(2, 6, 23, 0.88)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, h - barH, w, barH);
 
-  ctx.font = "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
-  ctx.fillStyle = "#e2e8f0";
+  ctx.font = "500 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  ctx.fillStyle = "#cbd5e1";
   ctx.textAlign = "center";
-  ctx.fillText(text, w / 2, h - 18);
+  ctx.fillText(text, w / 2, h - 16);
   ctx.restore();
 }
 
@@ -188,22 +233,20 @@ export function renderLivenessFrame(
 ): void {
   const w = CANVAS_WIDTH;
   const h = CANVAS_HEIGHT;
+  const complete = state.phase === "success" || state.challenge.isComplete;
+  const lockPhase = getLockPhase(state.challenge.progress, state.metrics.hasFace);
+  const color = lockColor(lockPhase, complete);
 
   ctx.clearRect(0, 0, w, h);
 
-  const color = challengeColor(
-    state.challenge.progress,
-    state.phase === "success" || state.challenge.isComplete,
-  );
-
   drawVignette(ctx, w, h);
-  drawGuideOval(ctx, w, h, state.challenge.progress, color, state.timestamp);
-  drawFaceTracking(ctx, state, videoW, videoH);
-  drawSensorHud(ctx, state);
+  drawGuideOval(ctx, w, h, state.challenge.progress, lockPhase, color, state.timestamp);
+  drawFaceGuidance(ctx, state, videoW, videoH, lockPhase);
 
   if (state.phase === "running") {
-    drawStatusBar(ctx, w, h, state.challenge.feedback);
+    drawLockBadge(ctx, w, lockPhase, state.challenge.feedback);
+    drawStatusBar(ctx, w, h, state.challenge.hint);
   } else if (state.phase === "success") {
-    drawStatusBar(ctx, w, h, "Liveness verified");
+    drawStatusBar(ctx, w, h, "Liveness verified — thank you!");
   }
 }
