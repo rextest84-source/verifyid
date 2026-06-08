@@ -6,50 +6,46 @@ export const FACE_API_WEIGHTS =
 export const CANVAS_WIDTH = 480;
 export const CANVAS_HEIGHT = 640;
 
-/** How centered the face must be in frame (moderate — not too strict). */
-export const ALIGN_MIN_CENTERING = 0.34;
-/** How close the face must be. */
-export const ALIGN_MIN_FACE_SCALE = 0.12;
-/** Smooth lock-in speed per good frame (lower = takes longer to lock). */
-export const ALIGN_PROGRESS_GAIN = 0.065;
-/** How quickly align progress fades when face drifts (gentle decay). */
-export const ALIGN_PROGRESS_DECAY = 0.03;
+/** Target centering for full lock (progress still builds below this). */
+export const ALIGN_MIN_CENTERING = 0.3;
+/** Target face size for full lock. */
+export const ALIGN_MIN_FACE_SCALE = 0.1;
+/** Lock-in speed when face is well positioned. */
+export const ALIGN_PROGRESS_GAIN = 0.095;
+/** Gentle fade when face drifts away. */
+export const ALIGN_PROGRESS_DECAY = 0.025;
+/** Minimum face presence to accumulate any align progress. */
+export const ALIGN_MIN_CENTERING_FLOOR = 0.16;
+export const ALIGN_MIN_SCALE_FLOOR = 0.055;
 
-export const BLINK_DROP_RATIO = 0.82;
+export const BLINK_DROP_RATIO = 0.84;
 export const BLINK_RECOVER_RATIO = 0.9;
-/** Minimum eye-close depth to count as a real blink. */
-export const BLINK_MIN_DROP = 0.02;
-/** Frames with open eyes before a blink can be accepted. */
-export const BLINK_MIN_OPEN_FRAMES = 6;
+export const BLINK_MIN_DROP = 0.018;
+export const BLINK_MIN_OPEN_FRAMES = 4;
 
-/** Head yaw must change this much from the step baseline to count as a turn. */
-export const TURN_DELTA_THRESHOLD = 0.075;
-export const TURN_PROGRESS_GAIN = 0.1;
-export const TURN_PROGRESS_DECAY = 0.04;
-/** Frames to sample neutral pose before measuring a turn. */
-export const TURN_BASELINE_FRAMES = 8;
+/** Yaw change from calibrated neutral pose required for a turn. */
+export const TURN_DELTA_THRESHOLD = 0.06;
+export const TURN_PROGRESS_GAIN = 0.14;
+export const TURN_PROGRESS_DECAY = 0.035;
+export const TURN_BASELINE_FRAMES = 4;
 
-export const HOLD_DURATION_MS = 900;
-export const HOLD_MIN_CENTERING = 0.3;
-/** Brief wobbles during hold won't reset the timer. */
-export const HOLD_BREAK_GRACE_FRAMES = 8;
+export const HOLD_DURATION_MS = 750;
+export const HOLD_MIN_CENTERING = 0.26;
+export const HOLD_BREAK_GRACE_FRAMES = 10;
 
-export const FACE_MISS_GRACE_FRAMES = 30;
+export const FACE_MISS_GRACE_FRAMES = 28;
 
-/** Minimum time (ms) each step must run before it can complete. */
+/** Minimum time per step — prevents instant skip but stays reasonable. */
 export const MIN_STEP_MS = {
-  align: 500,
-  blink: 900,
-  turn_left: 700,
-  turn_right: 700,
-  hold: 800,
+  align: 350,
+  blink: 650,
+  turn_left: 450,
+  turn_right: 450,
+  hold: 600,
 } as const;
 
-/** Target gap between detection runs (ms) — ~30 fps. */
 export const DETECTION_TARGET_MS = 33;
-/** Max rate during blink step (ms) — ~60 fps. */
 export const BLINK_DETECTION_TARGET_MS = 16;
-
 export const SUCCESS_TRANSITION_MS = 700;
 
 export const CHALLENGES: readonly ChallengeConfig[] = [
@@ -57,7 +53,7 @@ export const CHALLENGES: readonly ChallengeConfig[] = [
     id: "align",
     title: "Position",
     instruction: "Center your face in the oval",
-    hint: "Move slowly until the ring turns green — no rush",
+    hint: "Watch the scan line — the ring fills as we lock on",
   },
   {
     id: "blink",

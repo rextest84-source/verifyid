@@ -77,7 +77,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
                 {done ? (
                   <CheckCircle2 className="w-3 h-3" />
                 ) : active && phase === "running" ? (
-                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                  <Icon className="w-3 h-3 animate-pulse text-sky-300" />
                 ) : (
                   <Icon className="w-3 h-3" />
                 )}
@@ -114,7 +114,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
         <div className="flex flex-col items-center gap-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 max-w-sm text-center">
             <p className="text-xs text-slate-400 leading-relaxed">
-              Follow the on-screen oval. When it turns green, you're locked in. Then just blink and turn your head gently — we'll guide you through each step.
+              Watch for the scan line on your face and the ring filling up. When it turns green, you're locked in — then blink and turn gently.
             </p>
           </div>
           <Button
@@ -155,7 +155,13 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
           )}
 
           {phase === "running" && (
-            <div className="absolute top-3 right-3">
+            <div className="absolute top-3 right-3 flex items-center gap-2">
+              {(challenge.id === "align" || challenge.id.includes("turn")) && challenge.progress < 0.85 && (
+                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/75 border border-sky-500/30 text-[11px] font-medium text-sky-300 backdrop-blur-sm">
+                  <ScanFace className="w-3 h-3 animate-pulse" />
+                  Scanning
+                </span>
+              )}
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/75 border border-sky-500/25 text-[11px] font-medium text-sky-300 backdrop-blur-sm">
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
                 Live

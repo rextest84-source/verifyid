@@ -1,6 +1,8 @@
 import {
   ALIGN_MIN_CENTERING,
+  ALIGN_MIN_CENTERING_FLOOR,
   ALIGN_MIN_FACE_SCALE,
+  ALIGN_MIN_SCALE_FLOOR,
   ALIGN_PROGRESS_DECAY,
   ALIGN_PROGRESS_GAIN,
   BLINK_DROP_RATIO,
@@ -128,16 +130,17 @@ export class LivenessChallengeEngine {
     snapshot: ChallengeSnapshot;
     metrics: FrameMetrics;
   } {
-    const aligned =
-      metrics.centering >= ALIGN_MIN_CENTERING &&
-      metrics.faceScale >= ALIGN_MIN_FACE_SCALE;
+    const centerScore = Math.min(1, metrics.centering / ALIGN_MIN_CENTERING);
+    const scaleScore = Math.min(1, metrics.faceScale / ALIGN_MIN_FACE_SCALE);
+    const combined = centerScore * 0.55 + scaleScore * 0.45;
 
-    if (aligned) {
-      const quality = Math.min(
-        1,
-        (metrics.centering / ALIGN_MIN_CENTERING + metrics.faceScale / ALIGN_MIN_FACE_SCALE) / 2,
-      );
-      this.alignProgress = Math.min(1, this.alignProgress + ALIGN_PROGRESS_GAIN * quality);
+    const inFrame =
+      metrics.centering >= ALIGN_MIN_CENTERING_FLOOR &&
+      metrics.faceScale >= ALIGN_MIN_SCALE_FLOOR;
+
+    if (inFrame) {
+      const gain = ALIGN_PROGRESS_GAIN * (0.3 + combined * 0.7);
+      this.alignProgress = Math.min(1, this.alignProgress + gain);
     } else {
       this.alignProgress = Math.max(0, this.alignProgress - ALIGN_PROGRESS_DECAY);
     }
@@ -146,14 +149,16 @@ export class LivenessChallengeEngine {
     let feedback: string;
     if (progress >= 0.85) {
       feedback = "Locked in — perfect!";
-    } else if (progress >= 0.45) {
-      feedback = "Great — hold still a moment";
-    } else if (metrics.faceScale < ALIGN_MIN_FACE_SCALE) {
+    } else if (progress >= 0.5) {
+      feedback = "Scanning — hold steady...";
+    } else if (progress >= 0.2) {
+      feedback = "Good — keep your face in the oval";
+    } else if (metrics.faceScale < ALIGN_MIN_SCALE_FLOOR) {
       feedback = "Move a little closer";
-    } else if (metrics.centering < ALIGN_MIN_CENTERING) {
+    } else if (metrics.centering < ALIGN_MIN_CENTERING_FLOOR) {
       feedback = "Slowly center your face in the oval";
     } else {
-      feedback = "Good — keep steady";
+      feedback = "Scanning your face...";
     }
 
     if (this.alignProgress >= 1 && this.canAdvanceStep("align")) {
@@ -234,8 +239,8 @@ export class LivenessChallengeEngine {
 
     if (this.turnBaselineSamples.length < TURN_BASELINE_FRAMES) {
       return this.buildSnapshot(
-        0.1,
-        "Look straight at the camera",
+        0.15 + this.turnBaselineSamples.length * 0.04,
+        "Scanning — look straight ahead",
         false,
       );
     }
@@ -278,10 +283,10 @@ export class LivenessChallengeEngine {
       progress >= 0.7
         ? "Perfect — hold that angle"
         : turned
-          ? "Good turn — keep it there"
+          ? "Good — keep turning slightly"
           : direction === "left"
-            ? "Gently turn your head left"
-            : "Gently turn your head right";
+            ? "Slowly turn your head left"
+            : "Slowly turn your head right";
 
     if (this.turnProgress >= 1 && this.canAdvanceStep(stepId)) {
       this.advance();
