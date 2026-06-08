@@ -1,3 +1,4 @@
+import { adminRouter } from "./admin-router";
 import { authRouter } from "./auth-router";
 import { emailRouter } from "./email-router";
 import { verificationRouter } from "./verification-router";
@@ -25,6 +26,7 @@ export const appRouter = createRouter({
     .mutation(async ({ input }) => {
       return sendTestEmail(input.email);
     }),
+  admin: adminRouter,
   auth: authRouter,
   email: emailRouter,
   verification: verificationRouter,

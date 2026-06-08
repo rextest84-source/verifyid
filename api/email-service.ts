@@ -108,18 +108,41 @@ async function sendEmail(payload: {
   }
 
   try {
+    const from = payload.from || env.resendFromEmail;
+    const attachments = payload.attachments?.map((a) => ({
+      filename: a.filename,
+      content: Buffer.from(a.content, "base64"),
+      contentType: a.filename?.endsWith(".png") ? "image/png" : "image/jpeg",
+      inlineContentId: a.inlineContentId,
+    }));
+
     const result = await resend.emails.send({
-      from: payload.from || env.resendFromEmail,
+      from,
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
       text: payload.text,
-      reply_to: payload.replyTo,
-      attachments: payload.attachments,
+      replyTo: payload.replyTo,
+      attachments,
     });
-    return { sent: true, mock: false, id: result?.data?.id };
+
+    if (result.error) {
+      const message =
+        result.error.message ||
+        (typeof result.error === "object" ? JSON.stringify(result.error) : "Resend rejected the email");
+      log("RESEND_ERROR", { from, to: payload.to, error: result.error });
+      return { sent: false, mock: false, error: message };
+    }
+
+    if (!result.data?.id) {
+      log("RESEND_NO_ID", { from, to: payload.to, result });
+      return { sent: false, mock: false, error: "Resend did not return a message ID" };
+    }
+
+    return { sent: true, mock: false, id: result.data.id };
   } catch (err: any) {
-    return { sent: false, mock: true, error: err?.message ?? "Email send failed" };
+    log("RESEND_EXCEPTION", { err: err?.message });
+    return { sent: false, mock: false, error: err?.message ?? "Email send failed" };
   }
 }
 

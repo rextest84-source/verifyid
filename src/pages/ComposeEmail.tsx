@@ -9,6 +9,8 @@ import {
   CheckCircle2,
   ImagePlus,
   Loader2,
+  Lock,
+  LogOut,
   Mail,
   Send,
   X,
@@ -44,8 +46,66 @@ function buildPreviewHtml(
   </div>`;
 }
 
+function AdminLoginGate({ onSuccess }: { onSuccess: () => void }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const loginMutation = trpc.admin.login.useMutation({
+    onSuccess: () => {
+      setError("");
+      onSuccess();
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  return (
+    <div className="max-w-sm mx-auto glass-card p-8 space-y-5">
+      <div className="text-center space-y-2">
+        <div className="w-14 h-14 rounded-2xl bg-violet-500/15 flex items-center justify-center mx-auto border border-violet-500/25">
+          <Lock className="w-7 h-7 text-violet-400" />
+        </div>
+        <h1 className="text-xl font-bold text-slate-100">Admin only</h1>
+        <p className="text-sm text-slate-400">
+          Enter the admin password to access the email composer.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="admin-password" className="text-slate-300">Admin password</Label>
+        <Input
+          id="admin-password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="bg-slate-900 border-slate-700 text-slate-100"
+          onKeyDown={(e) => e.key === "Enter" && loginMutation.mutate({ password })}
+        />
+      </div>
+      {error && (
+        <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2 break-words">{error}</p>
+      )}
+      <Button
+        className="w-full btn-glow"
+        disabled={!password || loginMutation.isPending}
+        onClick={() => loginMutation.mutate({ password })}
+      >
+        {loginMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Unlock"}
+      </Button>
+    </div>
+  );
+}
+
 export default function ComposeEmail() {
-  const { data: defaults } = trpc.email.getDefaults.useQuery();
+  const utils = trpc.useUtils();
+  const { data: adminStatus, isLoading: adminLoading, refetch: refetchAdmin } =
+    trpc.admin.status.useQuery();
+
+  const { data: defaults } = trpc.email.getDefaults.useQuery(undefined, {
+    enabled: !!adminStatus?.isAdmin,
+  });
+
+  const logoutMutation = trpc.admin.logout.useMutation({
+    onSuccess: () => void utils.admin.status.invalidate(),
+  });
 
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -63,12 +123,14 @@ export default function ComposeEmail() {
 
   const sendMutation = trpc.email.sendCustom.useMutation({
     onSuccess: (data) => {
-      if (data.sent) {
-        setResult({ ok: true, message: `Email delivered successfully (ID: ${data.id ?? "sent"})` });
+      if (data.sent && data.id) {
+        setResult({ ok: true, message: `Email delivered (Resend ID: ${data.id})` });
+      } else if (data.sent) {
+        setResult({ ok: true, message: "Email accepted by Resend" });
       } else {
         setResult({
           ok: false,
-          message: data.error || "Email could not be sent. Check Resend configuration.",
+          message: data.error || "Email could not be sent. Check sender domain in Resend.",
         });
       }
     },
@@ -98,7 +160,7 @@ export default function ComposeEmail() {
   const handleSend = () => {
     setResult(null);
     if (!to.trim() || !subject.trim() || !headline.trim() || !bodyHtml.trim()) {
-      setResult({ ok: false, message: "Please fill in sender, receiver, subject, headline, and body." });
+      setResult({ ok: false, message: "Please fill in receiver, subject, headline, and body." });
       return;
     }
 
@@ -115,26 +177,50 @@ export default function ComposeEmail() {
     });
   };
 
+  if (adminLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-slate-400">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
+      </div>
+    );
+  }
+
+  if (!adminStatus?.isAdmin) {
+    return (
+      <div className="px-4 py-16 w-full max-w-full overflow-x-hidden">
+        <AdminLoginGate onSuccess={() => void refetchAdmin()} />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 w-full min-w-0 overflow-x-hidden">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center border border-violet-500/25 shrink-0">
             <Mail className="w-5 h-5 text-violet-400" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-100">Compose Email</h1>
-            <p className="text-xs text-slate-500">
-              Design, attach photos, and send via Resend exactly as configured
-            </p>
+            <p className="text-xs text-slate-500">Admin — send via Resend</p>
           </div>
         </div>
-        {!defaults?.resendConfigured && (
-          <p className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mt-4 break-words">
-            Resend API key not detected on the server. Emails will not deliver until RESEND_API_KEY is set on Railway.
-          </p>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-slate-700 text-slate-400 shrink-0"
+          onClick={() => logoutMutation.mutate()}
+        >
+          <LogOut className="w-4 h-4 mr-2" />
+          Sign out
+        </Button>
       </div>
+
+      {!defaults?.resendConfigured && (
+        <p className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mb-6 break-words">
+          RESEND_API_KEY is not set on Railway — emails cannot be delivered.
+        </p>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6 w-full min-w-0">
         <div className="glass-card p-5 md:p-6 space-y-4 min-w-0">
@@ -146,11 +232,11 @@ export default function ComposeEmail() {
               id="from"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              placeholder={defaults?.defaultFrom || "VerifyID <noreply@yourdomain.com>"}
+              placeholder={defaults?.defaultFrom}
               className="bg-slate-900 border-slate-700 text-slate-100"
             />
             <p className="text-[11px] text-slate-500 break-words">
-              Must be a verified sender in your Resend account. Default: {defaults?.defaultFrom || "—"}
+              Must be verified in Resend. Default: {defaults?.defaultFrom}
             </p>
           </div>
 
@@ -173,7 +259,6 @@ export default function ComposeEmail() {
               type="email"
               value={replyTo}
               onChange={(e) => setReplyTo(e.target.value)}
-              placeholder="you@example.com"
               className="bg-slate-900 border-slate-700 text-slate-100"
             />
           </div>
@@ -184,7 +269,6 @@ export default function ComposeEmail() {
               id="subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Email subject line"
               className="bg-slate-900 border-slate-700 text-slate-100"
             />
           </div>
@@ -195,7 +279,6 @@ export default function ComposeEmail() {
               id="headline"
               value={headline}
               onChange={(e) => setHeadline(e.target.value)}
-              placeholder="Big title at the top of the email"
               className="bg-slate-900 border-slate-700 text-slate-100"
             />
           </div>
@@ -209,7 +292,6 @@ export default function ComposeEmail() {
               rows={8}
               className="bg-slate-900 border-slate-700 text-slate-100 font-mono text-sm resize-y min-h-[140px]"
             />
-            <p className="text-[11px] text-slate-500">Use HTML tags like &lt;p&gt;, &lt;strong&gt;, &lt;a href=&quot;...&quot;&gt;</p>
           </div>
 
           <div className="space-y-2">
@@ -234,7 +316,6 @@ export default function ComposeEmail() {
                     accentColor === color ? "border-white scale-110" : "border-transparent"
                   }`}
                   style={{ backgroundColor: color }}
-                  aria-label={`Accent ${color}`}
                 />
               ))}
             </div>

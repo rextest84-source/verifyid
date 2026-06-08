@@ -1,19 +1,31 @@
 import { z } from "zod";
-import { createRouter, publicQuery } from "./middleware";
+import { createRouter, adminComposeQuery } from "./middleware";
 import { sendCustomEmail } from "./email-service";
 import { env } from "./lib/env";
 
+const emailList = z
+  .string()
+  .min(5)
+  .max(1000)
+  .refine(
+    (val) => {
+      const parts = val.includes(",") ? val.split(",").map((e) => e.trim()) : [val.trim()];
+      return parts.every((e) => z.string().email().safeParse(e).success);
+    },
+    { message: "Invalid recipient email address" },
+  );
+
 export const emailRouter = createRouter({
-  getDefaults: publicQuery.query(() => ({
+  getDefaults: adminComposeQuery.query(() => ({
     defaultFrom: env.resendFromEmail,
     resendConfigured: !!env.resendApiKey,
   })),
 
-  sendCustom: publicQuery
+  sendCustom: adminComposeQuery
     .input(
       z.object({
-        from: z.string().min(3),
-        to: z.string().min(5).max(1000),
+        from: z.string().min(3).optional(),
+        to: emailList,
         subject: z.string().min(1).max(200),
         headline: z.string().min(1).max(200),
         bodyHtml: z.string().min(1).max(20000),
@@ -29,10 +41,10 @@ export const emailRouter = createRouter({
     .mutation(async ({ input }) => {
       const toList = input.to.includes(",")
         ? input.to.split(",").map((e) => e.trim()).filter(Boolean)
-        : input.to;
+        : [input.to.trim()];
 
       return sendCustomEmail({
-        from: input.from,
+        from: input.from || env.resendFromEmail,
         to: toList,
         subject: input.subject,
         headline: input.headline,
