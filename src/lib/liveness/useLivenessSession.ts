@@ -18,6 +18,44 @@ const INITIAL_CHALLENGE: ChallengeSnapshot = {
   isComplete: false,
 };
 
+function waitForNextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
+/** iOS Safari needs loadedmetadata + playing before canvas drawImage works. */
+function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const finish = () => {
+      cleanup();
+      if (video.videoWidth > 0) resolve();
+      else reject(new Error("Camera returned no frames"));
+    };
+    const fail = () => {
+      cleanup();
+      reject(new Error("Camera failed to start"));
+    };
+    const cleanup = () => {
+      video.removeEventListener("loadedmetadata", finish);
+      video.removeEventListener("loadeddata", finish);
+      video.removeEventListener("playing", finish);
+      video.removeEventListener("error", fail);
+    };
+
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+      resolve();
+      return;
+    }
+
+    video.addEventListener("loadedmetadata", finish);
+    video.addEventListener("loadeddata", finish);
+    video.addEventListener("playing", finish);
+    video.addEventListener("error", fail);
+    void video.play().catch(fail);
+  });
+}
+
 export function useLivenessSession(onComplete: () => void) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,39 +84,67 @@ export function useLivenessSession(onComplete: () => void) {
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
-  const start = useCallback(async () => {
+  const start = useCallback(() => {
     setError("");
-    setPhase("loading");
     engineRef.current.reset();
     setChallenge(INITIAL_CHALLENGE);
+    setPhase("loading");
+  }, []);
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-        audio: false,
-      });
+  useEffect(() => {
+    if (phase !== "loading") return;
 
-      streamRef.current = stream;
-      const video = videoRef.current;
-      if (video) {
-        video.srcObject = stream;
-        await video.play().catch(() => {
-          setTimeout(() => video.play().catch(() => {}), 50);
+    let cancelled = false;
+
+    const initCamera = async () => {
+      await waitForNextFrame();
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+          },
+          audio: false,
         });
-      }
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
 
-      await loadFaceModels();
-      setPhase("running");
-    } catch {
-      setPhase("error");
-      setError("Camera access is required. Please allow permissions and try again.");
-      stopCamera();
-    }
-  }, [stopCamera]);
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (!video) throw new Error("Video element not ready");
+
+        video.setAttribute("playsinline", "true");
+        video.setAttribute("webkit-playsinline", "true");
+        video.muted = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.srcObject = stream;
+
+        await waitForVideoReady(video);
+        if (cancelled) return;
+
+        await loadFaceModels();
+        if (cancelled) return;
+
+        setPhase("running");
+      } catch {
+        if (cancelled) return;
+        setPhase("error");
+        setError("Camera access is required. Please allow permissions and try again.");
+        stopCamera();
+      }
+    };
+
+    void initCamera();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, stopCamera]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -96,12 +162,7 @@ export function useLivenessSession(onComplete: () => void) {
     const tick = async () => {
       if (!running) return;
 
-      if (
-        video.paused ||
-        video.ended ||
-        !video.videoWidth ||
-        phase !== "running"
-      ) {
+      if (video.paused || video.ended || !video.videoWidth) {
         animRef.current = requestAnimationFrame(tick);
         return;
       }
