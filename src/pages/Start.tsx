@@ -19,6 +19,18 @@ export default function Start() {
       navigate("/verify");
     },
     onError: (err) => {
+      const msg = err.message.toLowerCase();
+      if (
+        msg.includes("expected pattern") ||
+        msg.includes("failed to fetch") ||
+        msg.includes("json") ||
+        msg.includes("network")
+      ) {
+        setError(
+          "Could not reach the verification server. Make sure the API is deployed and connected to this site.",
+        );
+        return;
+      }
       setError(err.message);
     },
   });

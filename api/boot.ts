@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
@@ -12,6 +13,25 @@ import { serveStatic } from "@hono/node-server/serve-static";
 import path from "path";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+].filter(Boolean) as string[];
+
+app.use(
+  "*",
+  cors({
+    origin: (origin) => {
+      if (!origin) return allowedOrigins[0] ?? "*";
+      if (allowedOrigins.includes(origin)) return origin;
+      if (origin.endsWith(".netlify.app")) return origin;
+      return allowedOrigins[0] ?? origin;
+    },
+    credentials: true,
+  }),
+);
 
 app.use("/uploads/*", serveStatic({ root: "./" }));
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));

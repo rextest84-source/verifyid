@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { apiUrl } from "@/lib/api";
 import { trpc } from "@/providers/trpc";
 import { Button } from "@/components/ui/button";
 import { Camera, FileImage, CheckCircle2, Loader2 } from "lucide-react";
@@ -34,7 +35,7 @@ export default function IdUpload({ verificationId, onComplete }: IdUploadProps) 
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/upload", {
+      const res = await fetch(apiUrl("/api/upload"), {
         method: "POST",
         body: formData,
       });
