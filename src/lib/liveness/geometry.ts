@@ -60,8 +60,8 @@ export function computeEar(landmarks: FaceLandmarks): number {
 }
 
 /**
- * Normalized yaw estimate from nose offset within the face box.
- * Positive = user turned their head to their left.
+ * Normalized yaw from nose offset in raw camera space (face-api uses the
+ * unmirrored video frame). Positive = user turned their head to their left.
  */
 export function computeYaw(landmarks: FaceLandmarks, box: FaceBox): number {
   const nose = landmarks.getNose();
@@ -70,8 +70,7 @@ export function computeYaw(landmarks: FaceLandmarks, box: FaceBox): number {
   const noseTip = nose[Math.floor(nose.length / 2)];
   const faceCenterX = box.x + box.width / 2;
   const halfWidth = Math.max(box.width / 2, 1);
-  // Negate so directions match what the user sees in the mirrored selfie preview.
-  return -((noseTip.x - faceCenterX) / halfWidth);
+  return (noseTip.x - faceCenterX) / halfWidth;
 }
 
 export function computeCentering(box: FaceBox, videoW: number, videoH: number): number {
