@@ -1,6 +1,17 @@
+# Netlify: set RAILWAY_API_URL = https://YOUR-APP.up.railway.app (no trailing slash)
+# Edge proxy forwards /api/* and /uploads/* to Railway at runtime — no frontend rebuild needed.
+
 [build]
-  command = "npm run build:netlify"
+  command = "node scripts/check-netlify-env.mjs && npm run build"
   publish = "dist/public"
+
+[[edge_functions]]
+  function = "api-proxy"
+  path = "/api/*"
+
+[[edge_functions]]
+  function = "api-proxy"
+  path = "/uploads/*"
 
 [[redirects]]
   from = "/*"
