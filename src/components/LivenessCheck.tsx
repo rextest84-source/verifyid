@@ -28,37 +28,40 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
   const overallProgress =
     phase === "success"
       ? 100
-      : Math.round(((challenge.index + challenge.progress) / challengeCount) * 100);
+      : Math.round(((challenge.index + challenge.progress) / challengeCount) * 20) * 5;
+
+  const headerTitle =
+    phase === "success"
+      ? "Liveness verified"
+      : phase === "running"
+        ? `Step ${challenge.index + 1}: ${challenge.title}`
+        : phase === "loading"
+          ? "Starting camera..."
+          : "Quick face verification";
 
   return (
     <div className="space-y-5">
-      <div className="text-center space-y-3">
+      <div className="text-center space-y-3 min-h-[5.5rem]">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium">
           <Sparkles className="w-3.5 h-3.5" />
           Guided liveness check
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-slate-100">
-            {phase === "success"
-              ? "Liveness verified"
-              : phase === "running"
-                ? challenge.feedback
-                : phase === "loading"
-                  ? "Starting camera..."
-                  : "Quick face verification"}
-          </h3>
-          <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto">
+          <h3 className="text-lg font-semibold text-slate-100">{headerTitle}</h3>
+          <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto min-h-[2.5rem]">
             {phase === "idle"
               ? "Five easy steps — move at your own pace. No rush."
               : phase === "loading"
                 ? "Getting things ready..."
-                : challenge.hint}
+                : phase === "running"
+                  ? challenge.feedback
+                  : "Complete"}
           </p>
         </div>
       </div>
 
       {isActive && phase !== "success" && (
-        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+        <div className="flex items-center justify-center gap-1.5 flex-wrap min-h-[2rem]">
           {Array.from({ length: challengeCount }).map((_, idx) => {
             const Icon = CHALLENGE_ICONS[idx] ?? Shield;
             const done = idx < challenge.index;
@@ -66,7 +69,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
             return (
               <div
                 key={idx}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all duration-300 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${
                   done
                     ? "bg-green-500/10 border-green-500/30 text-green-400"
                     : active
@@ -76,10 +79,8 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
               >
                 {done ? (
                   <CheckCircle2 className="w-3 h-3" />
-                ) : active && phase === "running" ? (
-                  <Icon className="w-3 h-3 animate-pulse text-sky-300" />
                 ) : (
-                  <Icon className="w-3 h-3" />
+                  <Icon className={`w-3 h-3 ${active && phase === "running" ? "text-sky-300" : ""}`} />
                 )}
                 <span className="hidden sm:inline">{CHALLENGE_LABELS[idx]}</span>
               </div>
@@ -96,7 +97,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
           </div>
           <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 transition-all duration-300 ease-out rounded-full"
+              className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -130,12 +131,12 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
       {phase !== "idle" && (
         <div
-          className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-slate-700/80 shadow-2xl shadow-sky-500/10 bg-slate-950"
+          className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-slate-700/80 shadow-2xl shadow-sky-500/10 bg-slate-950 isolate [contain:layout_paint]"
           style={{ aspectRatio: `${CANVAS_WIDTH}/${CANVAS_HEIGHT}` }}
         >
           <video
             ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none -scale-x-100"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none -scale-x-100 [transform:translateZ(0)] [backface-visibility:hidden]"
             muted
             playsInline
             autoPlay
@@ -144,7 +145,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
             ref={canvasRef}
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
-            className="absolute inset-0 w-full h-full pointer-events-none"
+            className="absolute inset-0 w-full h-full pointer-events-none [transform:translateZ(0)] [backface-visibility:hidden]"
           />
 
           {phase === "loading" && (
@@ -155,22 +156,16 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
           )}
 
           {phase === "running" && (
-            <div className="absolute top-3 right-3 flex items-center gap-2">
-              {(challenge.id === "align" || challenge.id.includes("turn")) && challenge.progress < 0.85 && (
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/75 border border-sky-500/30 text-[11px] font-medium text-sky-300 backdrop-blur-sm">
-                  <ScanFace className="w-3 h-3 animate-pulse" />
-                  Scanning
-                </span>
-              )}
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/75 border border-sky-500/25 text-[11px] font-medium text-sky-300 backdrop-blur-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            <div className="absolute top-3 right-3 pointer-events-none">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/80 border border-sky-500/25 text-[11px] font-medium text-sky-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
                 Live
               </span>
             </div>
           )}
 
           {phase === "success" && (
-            <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center animate-in fade-in duration-300">
+            <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-500/30 to-emerald-500/10 flex items-center justify-center mb-4 border border-green-500/30">
                 <CheckCircle2 className="w-10 h-10 text-green-400" />
               </div>
@@ -182,8 +177,8 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
       )}
 
       {phase === "running" && (
-        <p className="text-center text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">
-          Follow each step: position, blink, turn left, turn right, then hold still. Move at your own pace.
+        <p className="text-center text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed min-h-[2rem]">
+          {challenge.hint}
         </p>
       )}
     </div>

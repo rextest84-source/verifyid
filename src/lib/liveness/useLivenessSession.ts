@@ -14,6 +14,7 @@ import { emptyMetrics } from "./geometry";
 import { captureVideoFrame, uploadImageFile } from "@/lib/upload";
 import type {
   ChallengeSnapshot,
+  FaceBox,
   FaceDetectionResult,
   LiveSensors,
   LivenessPhase,
@@ -81,7 +82,32 @@ function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
 }
 
 function snapshotUiKey(snapshot: ChallengeSnapshot): string {
-  return `${snapshot.index}:${snapshot.id}:${Math.floor(snapshot.progress * 24)}:${snapshot.feedback}`;
+  return `${snapshot.index}:${snapshot.id}:${Math.floor(snapshot.progress * 12)}`;
+}
+
+function smoothBox(prev: FaceBox | null, next: FaceBox, alpha = 0.22): FaceBox {
+  if (!prev) return next;
+  return {
+    x: prev.x + (next.x - prev.x) * alpha,
+    y: prev.y + (next.y - prev.y) * alpha,
+    width: prev.width + (next.width - prev.width) * alpha,
+    height: prev.height + (next.height - prev.height) * alpha,
+  };
+}
+
+function smoothFace(
+  prev: FaceDetectionResult | null,
+  next: FaceDetectionResult | null,
+): FaceDetectionResult | null {
+  if (!next) return null;
+  if (!prev) return next;
+  return {
+    detection: {
+      ...next.detection,
+      box: smoothBox(prev.detection.box, next.detection.box),
+    },
+    landmarks: next.landmarks,
+  };
 }
 
 function buildSensors(
@@ -110,20 +136,20 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
   const engineRef = useRef(new LivenessChallengeEngine());
   const onCompleteRef = useRef(onComplete);
   const faceRef = useRef<FaceDetectionResult | null>(null);
+  const displayFaceRef = useRef<FaceDetectionResult | null>(null);
   const challengeRef = useRef(INITIAL_CHALLENGE);
   const metricsRef = useRef(emptyMetrics());
   const sensorsRef = useRef<LiveSensors>(INITIAL_SENSORS);
   const detectInFlightRef = useRef(false);
   const lastDetectAtRef = useRef(0);
   const lastUiKeyRef = useRef("");
+  const lastUiPublishRef = useRef(0);
   const detectTimestampsRef = useRef<number[]>([]);
-  const lastSensorUiRef = useRef(0);
   onCompleteRef.current = onComplete;
 
   const [phase, setPhase] = useState<LivenessPhase>("idle");
   const [error, setError] = useState("");
   const [challenge, setChallenge] = useState<ChallengeSnapshot>(INITIAL_CHALLENGE);
-  const [sensors, setSensors] = useState<LiveSensors>(INITIAL_SENSORS);
 
   useEffect(() => {
     void preloadFaceModels();
@@ -141,6 +167,7 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
       video.srcObject = null;
     }
     faceRef.current = null;
+    displayFaceRef.current = null;
     detectInFlightRef.current = false;
     detectTimestampsRef.current = [];
   }, []);
@@ -166,13 +193,23 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
-  const publishUi = useCallback((snapshot: ChallengeSnapshot, liveSensors: LiveSensors) => {
+  const publishUi = useCallback((snapshot: ChallengeSnapshot) => {
     const key = snapshotUiKey(snapshot);
-    if (key !== lastUiKeyRef.current) {
+    const stepChanged = snapshot.index !== challengeRef.current.index;
+    const now = Date.now();
+
+    if (stepChanged || key !== lastUiKeyRef.current) {
       lastUiKeyRef.current = key;
+      lastUiPublishRef.current = now;
+      setChallenge(snapshot);
+      return;
+    }
+
+    if (now - lastUiPublishRef.current > 350) {
+      lastUiKeyRef.current = key;
+      lastUiPublishRef.current = now;
       setChallenge(snapshot);
     }
-    setSensors(liveSensors);
   }, []);
 
   const start = useCallback(() => {
@@ -181,8 +218,9 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
     challengeRef.current = INITIAL_CHALLENGE;
     sensorsRef.current = INITIAL_SENSORS;
     lastUiKeyRef.current = "";
+    lastUiPublishRef.current = 0;
+    displayFaceRef.current = null;
     setChallenge(INITIAL_CHALLENGE);
-    setSensors(INITIAL_SENSORS);
     setPhase("loading");
   }, []);
 
@@ -277,6 +315,7 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
           detectTimestampsRef.current = detectTimestampsRef.current.filter((t) => ts - t < 1000);
 
           faceRef.current = face;
+          displayFaceRef.current = face ? smoothFace(displayFaceRef.current, face) : null;
           const { snapshot, metrics } = engineRef.current.process(
             face,
             video.videoWidth,
@@ -289,7 +328,7 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
 
           const dps = detectTimestampsRef.current.length;
           sensorsRef.current = buildSensors(face, metrics, false, dps);
-          publishUi(snapshot, sensorsRef.current);
+          publishUi(snapshot);
 
           if (engineRef.current.isComplete) {
             setPhase("success");
@@ -329,16 +368,11 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
           challenge: snapshot,
           metrics: metricsRef.current,
           timestamp,
-          face: faceRef.current,
+          face: displayFaceRef.current,
           sensors: liveSensors,
         };
 
         renderLivenessFrame(ctx, renderState, video.videoWidth, video.videoHeight);
-
-        if (timestamp - lastSensorUiRef.current > 120) {
-          lastSensorUiRef.current = timestamp;
-          setSensors(liveSensors);
-        }
       }
 
       animRef.current = requestAnimationFrame(tick);
@@ -357,7 +391,6 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
     phase,
     error,
     challenge,
-    sensors,
     start,
     stopCamera,
     challengeCount: CHALLENGES.length,
