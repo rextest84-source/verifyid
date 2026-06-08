@@ -105,36 +105,52 @@ export default function Verify() {
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <Shield className="w-6 h-6 text-sky-400" />
-          <h1 className="text-xl font-semibold text-slate-100">Identity Verification</h1>
+          <div className="w-10 h-10 rounded-xl bg-sky-500/15 flex items-center justify-center border border-sky-500/25">
+            <Shield className="w-5 h-5 text-sky-400" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-100">Identity Verification</h1>
+            <p className="text-xs text-slate-500">3 quick steps — under 5 minutes</p>
+          </div>
         </div>
-        <p className="text-sm text-slate-400 mb-6">3 quick steps — under 5 minutes</p>
 
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-6 mt-6">
           {steps.map((s, idx) => (
-            <div key={s.num} className="flex items-center gap-3">
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 ${
-                  step >= s.num
-                    ? "border-sky-500 bg-sky-500/10 text-sky-400"
-                    : "border-slate-700 bg-slate-900 text-slate-500"
-                }`}
-              >
-                {step > s.num ? <CheckCircle2 className="w-5 h-5" /> : s.num}
+            <div key={s.num} className="flex items-center gap-2 sm:gap-3 flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-1.5 min-w-0">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300 ${
+                    step >= s.num
+                      ? "border-sky-500 bg-sky-500/15 text-sky-300 shadow-sm shadow-sky-500/20"
+                      : "border-slate-700 bg-slate-900/80 text-slate-500"
+                  }`}
+                >
+                  {step > s.num ? <CheckCircle2 className="w-5 h-5 text-emerald-400" /> : s.num}
+                </div>
+                <span className="text-[10px] text-slate-500 font-medium hidden sm:block truncate max-w-[5rem]">
+                  {s.label}
+                </span>
               </div>
               {idx < steps.length - 1 && (
-                <div className={`w-12 h-0.5 rounded ${step > s.num ? "bg-sky-500" : "bg-slate-800"}`} />
+                <div
+                  className={`flex-1 h-0.5 rounded-full transition-colors duration-500 ${
+                    step > s.num ? "bg-gradient-to-r from-sky-500 to-cyan-500" : "bg-slate-800"
+                  }`}
+                />
               )}
             </div>
           ))}
         </div>
 
-        <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
-          <div className="h-full bg-sky-500 transition-all duration-500" style={{ width: `${((step - 1) / 3) * 100}%` }} />
+        <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50">
+          <div
+            className="h-full bg-gradient-to-r from-sky-500 to-cyan-400 transition-all duration-500 ease-out"
+            style={{ width: `${((step - 1) / 3) * 100}%` }}
+          />
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 md:p-8">
+      <div className="glass-card p-6 md:p-8">
         {step === 1 && (
           <div className="space-y-6">
             <div className="flex items-center gap-2 mb-2">

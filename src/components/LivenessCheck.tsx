@@ -42,15 +42,15 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
   return (
     <div className="space-y-5">
       <div className="text-center space-y-3 min-h-[5.5rem]">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300 text-xs font-semibold shadow-sm shadow-sky-500/10">
           <Sparkles className="w-3.5 h-3.5" />
           Guided liveness check
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-slate-100">{headerTitle}</h3>
+          <h3 className="text-lg font-bold text-slate-100">{headerTitle}</h3>
           <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto min-h-[2.5rem]">
             {phase === "idle"
-              ? "Five easy steps — move at your own pace. No rush."
+              ? "Five easy steps — move at your own pace. Follow the on-screen arrows."
               : phase === "loading"
                 ? "Getting things ready..."
                 : phase === "running"
@@ -69,12 +69,12 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
             return (
               <div
                 key={idx}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all duration-300 ${
                   done
-                    ? "bg-green-500/10 border-green-500/30 text-green-400"
+                    ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-400"
                     : active
-                      ? "bg-sky-500/15 border-sky-500/40 text-sky-300"
-                      : "bg-slate-800/50 border-slate-700/50 text-slate-500"
+                      ? "bg-sky-500/15 border-sky-500/40 text-sky-300 shadow-sm shadow-sky-500/10"
+                      : "bg-slate-800/40 border-slate-700/50 text-slate-500"
                 }`}
               >
                 {done ? (
@@ -91,13 +91,13 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
       {isActive && (
         <div className="space-y-2 max-w-sm mx-auto">
-          <div className="flex justify-between text-[11px] text-slate-500 font-medium">
+          <div className="flex justify-between text-[11px] text-slate-500 font-semibold tracking-wide uppercase">
             <span>{phase === "success" ? "Complete" : `Step ${challenge.index + 1} of ${challengeCount}`}</span>
-            <span>{overallProgress}%</span>
+            <span className="text-sky-400">{overallProgress}%</span>
           </div>
-          <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-2 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50">
             <div
-              className="h-full bg-gradient-to-r from-sky-500 to-emerald-400 rounded-full"
+              className="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -105,7 +105,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
       )}
 
       {error && (
-        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 rounded-xl px-4 py-3 border border-red-500/20 max-w-sm mx-auto">
+        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 rounded-xl px-4 py-3 border border-red-500/25 max-w-sm mx-auto">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
@@ -113,16 +113,13 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
       {phase === "idle" && (
         <div className="flex flex-col items-center gap-4">
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 max-w-sm text-center">
+          <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 backdrop-blur px-5 py-4 max-w-sm text-center">
             <p className="text-xs text-slate-400 leading-relaxed">
-              Watch for the scan line on your face and the ring filling up. When it turns green, you're locked in — then blink and turn gently.
+              Watch for the scan line and progress ring. When it turns green,
+              you&apos;re locked in — then blink and follow the left/right arrows.
             </p>
           </div>
-          <Button
-            onClick={start}
-            className="bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white shadow-lg shadow-sky-500/20"
-            size="lg"
-          >
+          <Button onClick={start} className="btn-glow" size="lg">
             <Camera className="w-4 h-4 mr-2" />
             Begin Liveness Check
           </Button>
@@ -131,7 +128,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
       {phase !== "idle" && (
         <div
-          className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-slate-700/80 shadow-2xl shadow-sky-500/10 bg-slate-950 isolate [contain:layout_paint]"
+          className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-sky-500/20 shadow-2xl shadow-sky-500/15 bg-slate-950 isolate [contain:layout_paint] ring-1 ring-sky-500/10"
           style={{ aspectRatio: `${CANVAS_WIDTH}/${CANVAS_HEIGHT}` }}
         >
           <video
@@ -149,25 +146,25 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
           />
 
           {phase === "loading" && (
-            <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 text-sky-400 animate-spin" />
-              <p className="text-sm text-slate-400">Opening camera...</p>
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+              <Loader2 className="w-9 h-9 text-sky-400 animate-spin" />
+              <p className="text-sm text-slate-400 font-medium">Opening camera...</p>
             </div>
           )}
 
           {phase === "running" && (
             <div className="absolute top-3 right-3 pointer-events-none">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/80 border border-sky-500/25 text-[11px] font-medium text-sky-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur border border-sky-500/30 text-[11px] font-semibold text-sky-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
                 Live
               </span>
             </div>
           )}
 
           {phase === "success" && (
-            <div className="absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-500/30 to-emerald-500/10 flex items-center justify-center mb-4 border border-green-500/30">
-                <CheckCircle2 className="w-10 h-10 text-green-400" />
+            <div className="absolute inset-0 bg-slate-950/88 backdrop-blur-sm flex flex-col items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-emerald-500/30 to-green-500/10 flex items-center justify-center mb-4 border border-emerald-500/35 shadow-lg shadow-emerald-500/20">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400" />
               </div>
               <p className="text-xl font-bold text-slate-100">All done!</p>
               <p className="text-sm text-slate-400 mt-2">Moving to the next step...</p>
