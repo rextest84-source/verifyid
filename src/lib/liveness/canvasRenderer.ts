@@ -48,20 +48,17 @@ function drawGuideOval(
   progress: number,
   phase: LockPhase,
   color: string,
-  time: number,
 ) {
   const cx = w / 2;
   const cy = h / 2;
-  const breathe = 0.5 + 0.5 * Math.sin(time * 0.004);
-  const pulse = phase === "locking" ? 1 + breathe * 0.02 : 1;
-  const rx = OVAL_RX * pulse;
-  const ry = OVAL_RY * pulse;
+  const rx = OVAL_RX;
+  const ry = OVAL_RY;
 
   ctx.save();
 
   if (phase === "locked" || phase === "locking") {
     ctx.shadowColor = color;
-    ctx.shadowBlur = phase === "locked" ? 22 : 12 + breathe * 6;
+    ctx.shadowBlur = phase === "locked" ? 16 : 10;
   }
 
   ctx.strokeStyle = `${color}55`;
@@ -91,29 +88,22 @@ function drawGuideOval(
 
 function drawScanLine(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  bw: number,
-  bh: number,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
   timestamp: number,
-  color: string,
 ) {
-  const scanOffset = (timestamp * 0.4) % Math.max(bh, 1);
-  const scanY = y + scanOffset;
+  const scanRange = ry * 1.6;
+  const scanY = cy - scanRange / 2 + ((timestamp * 0.12) % scanRange);
 
   ctx.save();
-  ctx.strokeStyle = `${color}66`;
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([5, 5]);
-  ctx.strokeRect(x, y, bw, bh);
-  ctx.setLineDash([]);
-
-  const grad = ctx.createLinearGradient(0, scanY - 24, 0, scanY + 24);
+  const grad = ctx.createLinearGradient(0, scanY - 18, 0, scanY + 18);
   grad.addColorStop(0, "rgba(56, 189, 248, 0)");
-  grad.addColorStop(0.5, "rgba(56, 189, 248, 0.55)");
+  grad.addColorStop(0.5, "rgba(56, 189, 248, 0.4)");
   grad.addColorStop(1, "rgba(56, 189, 248, 0)");
   ctx.fillStyle = grad;
-  ctx.fillRect(x, scanY - 24, bw, 48);
+  ctx.fillRect(cx - rx, scanY - 18, rx * 2, 36);
   ctx.restore();
 }
 
@@ -142,9 +132,8 @@ function drawFaceGuidance(
   const faceCx = (tl.x + br.x) / 2;
   const faceCy = (tl.y + br.y) / 2;
 
-  const scanColor = lockPhase === "locking" ? "#38bdf8" : "#7dd3fc";
   if (shouldShowScan(state, lockPhase)) {
-    drawScanLine(ctx, x, y, bw, bh, state.timestamp, scanColor);
+    drawScanLine(ctx, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, OVAL_RX, OVAL_RY, state.timestamp);
   }
 
   if (lockPhase === "locking" || lockPhase === "locked") {
@@ -194,20 +183,15 @@ function drawFaceGuidance(
   }
 }
 
-function drawLockBadge(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  lockPhase: LockPhase,
-  feedback: string,
-) {
+function drawLockBadge(ctx: CanvasRenderingContext2D, w: number, lockPhase: LockPhase) {
   const labels: Record<LockPhase, string> = {
-    searching: "Looking for you...",
-    detecting: "Scanning face...",
-    locking: "Locking in...",
+    searching: "Looking for you",
+    detecting: "Scanning face",
+    locking: "Locking in",
     locked: "Locked in",
   };
 
-  const label = lockPhase === "searching" ? labels.searching : feedback || labels[lockPhase];
+  const label = labels[lockPhase];
   const badgeColor =
     lockPhase === "locked"
       ? "rgba(74, 222, 128, 0.2)"
@@ -216,10 +200,7 @@ function drawLockBadge(
         : "rgba(15, 23, 42, 0.72)";
 
   ctx.save();
-  ctx.font = "600 11px -apple-system, BlinkMacSystemFont, sans-serif";
-  const textW = ctx.measureText(label).width;
-  const padX = 12;
-  const badgeW = textW + padX * 2;
+  const badgeW = 148;
   const badgeH = 26;
   const bx = (w - badgeW) / 2;
   const by = 14;
@@ -235,16 +216,15 @@ function drawLockBadge(
   ctx.fill();
   ctx.stroke();
 
-  if (lockPhase === "locked" || lockPhase === "locking") {
-    ctx.fillStyle = lockPhase === "locked" ? "#4ade80" : "#38bdf8";
-    ctx.beginPath();
-    ctx.arc(bx + 10, by + badgeH / 2, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.fillStyle = lockPhase === "locked" ? "#4ade80" : "#38bdf8";
+  ctx.beginPath();
+  ctx.arc(bx + 12, by + badgeH / 2, 3, 0, Math.PI * 2);
+  ctx.fill();
 
+  ctx.font = "600 11px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = lockPhase === "locked" ? "#bbf7d0" : "#e2e8f0";
   ctx.textAlign = "center";
-  ctx.fillText(label, w / 2 + (lockPhase === "locked" || lockPhase === "locking" ? 6 : 0), by + 17);
+  ctx.fillText(label, w / 2 + 6, by + 17);
   ctx.restore();
 }
 
@@ -279,12 +259,12 @@ export function renderLivenessFrame(
   ctx.clearRect(0, 0, w, h);
 
   drawVignette(ctx, w, h);
-  drawGuideOval(ctx, w, h, state.challenge.progress, lockPhase, color, state.timestamp);
+  drawGuideOval(ctx, w, h, state.challenge.progress, lockPhase, color);
   drawFaceGuidance(ctx, state, videoW, videoH, lockPhase);
 
   if (state.phase === "running") {
-    drawLockBadge(ctx, w, lockPhase, state.challenge.feedback);
-    drawStatusBar(ctx, w, h, state.challenge.hint);
+    drawLockBadge(ctx, w, lockPhase);
+    drawStatusBar(ctx, w, h, state.challenge.feedback);
   } else if (state.phase === "success") {
     drawStatusBar(ctx, w, h, "Liveness verified — thank you!");
   }
