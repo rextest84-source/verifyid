@@ -294,7 +294,6 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
 
     let running = true;
     const mirrorPreview = shouldMirrorSelfiePreview();
-    const sensorMirrored = !mirrorPreview;
 
     const runDetection = (now: number) => {
       if (!running || detectInFlightRef.current || !video.videoWidth) return;
@@ -309,7 +308,7 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
       lastDetectAtRef.current = now;
       detectInFlightRef.current = true;
 
-      void detectFace(video)
+      void detectFace(video, mirrorPreview)
         .then((face) => {
           if (!running) return;
 
@@ -319,12 +318,12 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
 
           faceRef.current = face;
           displayFaceRef.current = face ? smoothFace(displayFaceRef.current, face) : null;
+          const nowMs = Date.now();
           const { snapshot, metrics } = engineRef.current.process(
             face,
             video.videoWidth,
             video.videoHeight,
-            Date.now(),
-            sensorMirrored,
+            nowMs,
           );
 
           challengeRef.current = snapshot;
@@ -344,17 +343,18 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
         });
     };
 
-    const tick = (timestamp: number) => {
+    const tick = () => {
       if (!running) return;
 
       if (!video.paused && !video.ended && video.videoWidth) {
-        runDetection(timestamp);
+        runDetection(performance.now());
 
         const engine = engineRef.current;
         let snapshot = challengeRef.current;
+        const nowMs = Date.now();
 
         if (snapshot.id === "hold") {
-          const smooth = engine.getHoldProgress(timestamp);
+          const smooth = engine.getHoldProgress(nowMs);
           if (smooth > snapshot.progress) {
             snapshot = { ...snapshot, progress: smooth };
           }
@@ -371,7 +371,7 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
           phase: engine.isComplete ? "success" : "running",
           challenge: snapshot,
           metrics: metricsRef.current,
-          timestamp,
+          timestamp: nowMs,
           face: displayFaceRef.current,
           sensors: liveSensors,
         };
