@@ -22,12 +22,17 @@ export const BLINK_DROP_RATIO = 0.84;
 export const BLINK_RECOVER_RATIO = 0.9;
 export const BLINK_MIN_DROP = 0.018;
 export const BLINK_MIN_OPEN_FRAMES = 4;
+/** Minimum EAR while arming blink detection (eyes open). */
+export const BLINK_MIN_OPEN_EAR = 0.16;
+/** Minimum peak EAR before a close can count as a blink. */
+export const BLINK_PEAK_MIN = 0.14;
 
 /** Yaw change from calibrated neutral pose required for a turn. */
 export const TURN_DELTA_THRESHOLD = 0.06;
 export const TURN_PROGRESS_GAIN = 0.14;
 export const TURN_PROGRESS_DECAY = 0.035;
-export const TURN_BASELINE_FRAMES = 4;
+export const TURN_BASELINE_FRAMES = 6;
+export const TURN_YAW_SMOOTHING = 0.35;
 
 export const HOLD_DURATION_MS = 750;
 export const HOLD_MIN_CENTERING = 0.26;

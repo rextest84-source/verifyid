@@ -1,11 +1,10 @@
 /**
- * Verifies head-turn yaw for desktop (raw sensor) and mobile (mirrored sensor).
- * Run: node scripts/test-yaw.mjs
+ * Verifies head-turn yaw in selfie display space (matches on-screen preview).
+ * Run: npm run test:yaw
  */
 
-function computeYaw(noseX, faceCenterX, halfWidth, sensorMirrored = false) {
-  const raw = (noseX - faceCenterX) / halfWidth;
-  return sensorMirrored ? -raw : raw;
+function computeYaw(noseX, faceCenterX, halfWidth) {
+  return (faceCenterX - noseX) / halfWidth;
 }
 
 function detectTurn(delta, direction, threshold = 0.06) {
@@ -15,7 +14,7 @@ function detectTurn(delta, direction, threshold = 0.06) {
 
 const center = 200;
 const hw = 50;
-const baseline = (mirrored) => computeYaw(center, center, hw, mirrored);
+const baseline = computeYaw(center, center, hw);
 
 let passed = 0;
 let failed = 0;
@@ -30,29 +29,27 @@ function assert(name, condition) {
   }
 }
 
-console.log("Yaw direction tests\n");
+console.log("Yaw direction tests (display space)\n");
 
-// Desktop: unmirrored sensor — physical left raises nose x
-const desktopLeft = computeYaw(230, center, hw, false) - baseline(false);
-assert("desktop: physical left → positive yaw", desktopLeft > 0.3);
-assert("desktop: turn_left accepts physical left", detectTurn(desktopLeft, "left"));
+const leftYaw = computeYaw(170, center, hw);
+const leftDelta = leftYaw - baseline;
+assert("left on screen → positive yaw", leftYaw > 0.3);
+assert("turn_left detects leftward turn", detectTurn(leftDelta, "left"));
 
-const desktopRight = computeYaw(170, center, hw, false) - baseline(false);
-assert("desktop: physical right → negative yaw", desktopRight < -0.3);
-assert("desktop: turn_right accepts physical right", detectTurn(desktopRight, "right"));
+const rightYaw = computeYaw(230, center, hw);
+const rightDelta = rightYaw - baseline;
+assert("right on screen → negative yaw", rightYaw < -0.3);
+assert("turn_right detects rightward turn", detectTurn(rightDelta, "right"));
 
-// Mobile: mirrored sensor — physical left lowers nose x in frame
-const mobileLeft = computeYaw(170, center, hw, true) - baseline(true);
-assert("mobile: physical left → positive yaw", mobileLeft > 0.3);
-assert("mobile: turn_left accepts physical left", detectTurn(mobileLeft, "left"));
+const neutralDelta = computeYaw(202, center, hw) - baseline;
+assert("neutral pose does not trigger left", !detectTurn(neutralDelta, "left"));
+assert("neutral pose does not trigger right", !detectTurn(neutralDelta, "right"));
 
-const mobileRight = computeYaw(230, center, hw, true) - baseline(true);
-assert("mobile: physical right → negative yaw", mobileRight < -0.3);
-assert("mobile: turn_right accepts physical right", detectTurn(mobileRight, "right"));
-
-// Prior buggy preview-only formula rejected mobile left
-const buggy = (center - 170) / hw;
-assert("buggy preview formula alone is wrong for mobile raw coords", buggy > 0);
+function oldRawYaw(noseX, faceCenterX, halfWidth) {
+  return (noseX - faceCenterX) / halfWidth;
+}
+const oldLeft = oldRawYaw(170, center, hw) - oldRawYaw(center, center, hw);
+assert("old raw formula inverts left turn", !detectTurn(oldLeft, "left"));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

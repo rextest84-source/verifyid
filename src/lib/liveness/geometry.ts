@@ -56,27 +56,21 @@ export function eyeAspectRatio(eye: Point2D[]): number {
 export function computeEar(landmarks: FaceLandmarks): number {
   const left = eyeAspectRatio(landmarks.getLeftEye());
   const right = eyeAspectRatio(landmarks.getRightEye());
-  // Use the lower EAR — more sensitive when either eye closes during a blink.
   return Math.min(left, right);
 }
 
 /**
- * Normalized yaw where positive = user turned their head to their own left.
- * Mobile front cameras often deliver mirrored sensor frames; desktop does not.
+ * Yaw in selfie display space (after detection-canvas normalization).
+ * Positive = nose shifts toward the left side of the on-screen preview.
  */
-export function computeYaw(
-  landmarks: FaceLandmarks,
-  box: FaceBox,
-  sensorMirrored = false,
-): number {
+export function computeYaw(landmarks: FaceLandmarks, box: FaceBox): number {
   const nose = landmarks.getNose();
   if (!nose.length) return 0;
 
   const noseTip = nose[Math.floor(nose.length / 2)];
   const faceCenterX = box.x + box.width / 2;
   const halfWidth = Math.max(box.width / 2, 1);
-  const raw = (noseTip.x - faceCenterX) / halfWidth;
-  return sensorMirrored ? -raw : raw;
+  return (faceCenterX - noseTip.x) / halfWidth;
 }
 
 export function computeCentering(box: FaceBox, videoW: number, videoH: number): number {
@@ -96,13 +90,12 @@ export function extractMetrics(
   box: FaceBox,
   videoW: number,
   videoH: number,
-  sensorMirrored = false,
 ): Omit<FrameMetrics, "hasFace"> {
   return {
     centering: computeCentering(box, videoW, videoH),
     faceScale: computeFaceScale(box, videoW),
     ear: computeEar(landmarks),
-    yaw: computeYaw(landmarks, box, sensorMirrored),
+    yaw: computeYaw(landmarks, box),
   };
 }
 

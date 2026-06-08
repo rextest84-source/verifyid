@@ -5,6 +5,8 @@
   "scripts": {
     "build": "vite build",
     "test:yaw": "node scripts/test-yaw.mjs",
+    "test:liveness": "tsx scripts/test-liveness.ts",
+    "test": "npm run test:yaw && npm run test:liveness",
     "build:netlify": "node scripts/check-netlify-env.mjs && vite build",
     "db:push": "drizzle-kit push",
     "start": "npx tsx api/boot.ts"

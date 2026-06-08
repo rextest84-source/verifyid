@@ -107,9 +107,17 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
       )}
 
       {error && (
-        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 rounded-xl px-4 py-3 border border-red-500/25 max-w-sm mx-auto">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
+        <div className="flex flex-col items-center gap-3 max-w-sm mx-auto">
+          <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 rounded-xl px-4 py-3 border border-red-500/25 w-full">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+          {phase === "error" && (
+            <Button onClick={start} variant="outline" className="border-violet-500/40 text-violet-300">
+              <Camera className="w-4 h-4 mr-2" />
+              Try again
+            </Button>
+          )}
         </div>
       )}
 

@@ -7,7 +7,9 @@ import {
   ALIGN_PROGRESS_GAIN,
   BLINK_DROP_RATIO,
   BLINK_MIN_DROP,
+  BLINK_MIN_OPEN_EAR,
   BLINK_MIN_OPEN_FRAMES,
+  BLINK_PEAK_MIN,
   BLINK_RECOVER_RATIO,
   CHALLENGES,
   FACE_MISS_GRACE_FRAMES,
@@ -19,6 +21,7 @@ import {
   TURN_DELTA_THRESHOLD,
   TURN_PROGRESS_DECAY,
   TURN_PROGRESS_GAIN,
+  TURN_YAW_SMOOTHING,
 } from "./constants";
 import { emptyMetrics, extractMetrics } from "./geometry";
 import type {
@@ -43,6 +46,7 @@ export class LivenessChallengeEngine {
   private blinkLowEar = 1;
   private turnBaselineYaw: number | null = null;
   private turnBaselineSamples: number[] = [];
+  private smoothedYaw: number | null = null;
 
   reset(): void {
     this.index = 0;
@@ -50,6 +54,7 @@ export class LivenessChallengeEngine {
     this.resetCurrentChallenge();
     this.missedFaceFrames = 0;
     this.lastProgress = 0;
+    this.smoothedYaw = null;
   }
 
   get isComplete(): boolean {
@@ -70,16 +75,12 @@ export class LivenessChallengeEngine {
     videoW: number,
     videoH: number,
     timestamp: number,
-    sensorMirrored = false,
   ): { snapshot: ChallengeSnapshot; metrics: FrameMetrics } {
     if (this.isComplete) {
       return {
         snapshot: this.buildSnapshot(1, "All done — nice work!", true),
         metrics: face
-          ? {
-              hasFace: true,
-              ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH, sensorMirrored),
-            }
+          ? { hasFace: true, ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH) }
           : emptyMetrics(),
       };
     }
@@ -91,6 +92,14 @@ export class LivenessChallengeEngine {
       if (this.missedFaceFrames > FACE_MISS_GRACE_FRAMES) {
         this.alignProgress = Math.max(0, this.alignProgress - ALIGN_PROGRESS_DECAY);
         this.turnProgress = Math.max(0, this.turnProgress - TURN_PROGRESS_DECAY);
+      }
+
+      if (
+        this.missedFaceFrames > 6 &&
+        (config.id === "turn_left" || config.id === "turn_right") &&
+        this.turnBaselineYaw === null
+      ) {
+        this.resetTurnCalibration();
       }
 
       const feedback =
@@ -105,9 +114,11 @@ export class LivenessChallengeEngine {
     }
 
     this.missedFaceFrames = 0;
+    const rawMetrics = extractMetrics(face.landmarks, face.detection.box, videoW, videoH);
     const metrics = {
-      hasFace: true,
-      ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH, sensorMirrored),
+      hasFace: true as const,
+      ...rawMetrics,
+      yaw: this.smoothYaw(rawMetrics.yaw),
     };
 
     switch (config.id) {
@@ -127,6 +138,21 @@ export class LivenessChallengeEngine {
           metrics,
         };
     }
+  }
+
+  private smoothYaw(yaw: number): number {
+    if (this.smoothedYaw === null) {
+      this.smoothedYaw = yaw;
+      return yaw;
+    }
+    this.smoothedYaw += (yaw - this.smoothedYaw) * TURN_YAW_SMOOTHING;
+    return this.smoothedYaw;
+  }
+
+  private resetTurnCalibration(): void {
+    this.turnBaselineYaw = null;
+    this.turnBaselineSamples = [];
+    this.turnProgress = 0;
   }
 
   private canAdvanceStep(stepId: ChallengeId): boolean {
@@ -190,7 +216,7 @@ export class LivenessChallengeEngine {
 
     if (!this.blinkSawClose) {
       this.blinkPeakEar = Math.max(this.blinkPeakEar, ear);
-      if (ear > 0.18) {
+      if (ear > BLINK_MIN_OPEN_EAR) {
         this.blinkOpenFrames++;
       }
     }
@@ -202,7 +228,7 @@ export class LivenessChallengeEngine {
       this.blinkLowEar + BLINK_MIN_DROP,
     );
 
-    if (blinkArmed && !this.blinkSawClose && this.blinkPeakEar > 0.15 && ear <= closeLine) {
+    if (blinkArmed && !this.blinkSawClose && this.blinkPeakEar > BLINK_PEAK_MIN && ear <= closeLine) {
       this.blinkSawClose = true;
       this.blinkLowEar = ear;
     }
@@ -247,7 +273,7 @@ export class LivenessChallengeEngine {
     if (this.turnBaselineSamples.length < TURN_BASELINE_FRAMES) {
       return this.buildSnapshot(
         0.15 + this.turnBaselineSamples.length * 0.04,
-        "Scanning — look straight ahead",
+        "Look straight at the camera",
         false,
       );
     }
@@ -292,8 +318,8 @@ export class LivenessChallengeEngine {
         : turned
           ? "Good — keep turning slightly"
           : direction === "left"
-            ? "Slowly turn your head left"
-            : "Slowly turn your head right";
+            ? "Turn your head to your left"
+            : "Turn your head to your right";
 
     if (this.turnProgress >= 1 && this.canAdvanceStep(stepId)) {
       this.advance();
@@ -368,8 +394,8 @@ export class LivenessChallengeEngine {
     this.blinkOpenFrames = 0;
     this.blinkSawClose = false;
     this.blinkLowEar = 1;
-    this.turnBaselineYaw = null;
-    this.turnBaselineSamples = [];
+    this.resetTurnCalibration();
+    this.smoothedYaw = null;
   }
 
   private buildSnapshot(
