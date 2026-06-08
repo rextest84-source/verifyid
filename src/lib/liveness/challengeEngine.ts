@@ -1,15 +1,18 @@
 import {
-  ALIGN_FRAMES_REQUIRED,
   ALIGN_MIN_CENTERING,
   ALIGN_MIN_FACE_SCALE,
+  ALIGN_PROGRESS_DECAY,
+  ALIGN_PROGRESS_GAIN,
   BLINK_DROP_RATIO,
   BLINK_MIN_DROP,
   BLINK_RECOVER_RATIO,
   CHALLENGES,
   FACE_MISS_GRACE_FRAMES,
+  HOLD_BREAK_GRACE_FRAMES,
   HOLD_DURATION_MS,
   HOLD_MIN_CENTERING,
-  TURN_FRAMES_REQUIRED,
+  TURN_PROGRESS_DECAY,
+  TURN_PROGRESS_GAIN,
   TURN_YAW_THRESHOLD,
 } from "./constants";
 import { emptyMetrics, extractMetrics } from "./geometry";
@@ -22,16 +25,14 @@ import type {
 
 export class LivenessChallengeEngine {
   private index = 0;
-  private alignFrames = 0;
-  private turnFrames = 0;
+  private alignProgress = 0;
+  private turnProgress = 0;
   private holdStartedAt: number | null = null;
+  private holdBreakFrames = 0;
   private missedFaceFrames = 0;
   private lastProgress = 0;
-  /** Peak open-eye EAR while waiting for a blink. */
   private blinkPeakEar = 0;
-  /** True once eyes drop below the blink threshold. */
   private blinkSawClose = false;
-  /** Lowest EAR seen during the current blink attempt. */
   private blinkLowEar = 1;
 
   reset(): void {
@@ -49,7 +50,6 @@ export class LivenessChallengeEngine {
     return CHALLENGES[Math.min(this.index, CHALLENGES.length - 1)].id;
   }
 
-  /** Smooth hold progress between detection frames (call from rAF). */
   getHoldProgress(now: number): number {
     if (this.holdStartedAt === null) return 0;
     return Math.min(1, (now - this.holdStartedAt) / HOLD_DURATION_MS);
@@ -63,7 +63,7 @@ export class LivenessChallengeEngine {
   ): { snapshot: ChallengeSnapshot; metrics: FrameMetrics } {
     if (this.isComplete) {
       return {
-        snapshot: this.buildSnapshot(1, "Verification complete", true),
+        snapshot: this.buildSnapshot(1, "All done — nice work!", true),
         metrics: face
           ? { hasFace: true, ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH) }
           : emptyMetrics(),
@@ -75,14 +75,14 @@ export class LivenessChallengeEngine {
     if (!face) {
       this.missedFaceFrames++;
       if (this.missedFaceFrames > FACE_MISS_GRACE_FRAMES) {
-        this.alignFrames = Math.max(0, this.alignFrames - 1);
-        this.turnFrames = Math.max(0, this.turnFrames - 1);
+        this.alignProgress = Math.max(0, this.alignProgress - ALIGN_PROGRESS_DECAY);
+        this.turnProgress = Math.max(0, this.turnProgress - TURN_PROGRESS_DECAY);
       }
 
       const feedback =
-        this.missedFaceFrames > 4
-          ? "Move your face back into the oval"
-          : config.instruction;
+        this.missedFaceFrames > 6
+          ? "Step back into the oval — take your time"
+          : "Looking for your face...";
 
       return {
         snapshot: this.buildSnapshot(this.lastProgress, feedback, false),
@@ -121,20 +121,30 @@ export class LivenessChallengeEngine {
       metrics.faceScale >= ALIGN_MIN_FACE_SCALE;
 
     if (aligned) {
-      this.alignFrames++;
+      const quality = Math.min(
+        1,
+        (metrics.centering / ALIGN_MIN_CENTERING + metrics.faceScale / ALIGN_MIN_FACE_SCALE) / 2,
+      );
+      this.alignProgress = Math.min(1, this.alignProgress + ALIGN_PROGRESS_GAIN * quality);
     } else {
-      this.alignFrames = Math.max(0, this.alignFrames - 1);
+      this.alignProgress = Math.max(0, this.alignProgress - ALIGN_PROGRESS_DECAY);
     }
 
-    const progress = Math.min(1, this.alignFrames / ALIGN_FRAMES_REQUIRED);
-    const feedback =
-      metrics.faceScale < ALIGN_MIN_FACE_SCALE
-        ? "Move a little closer"
-        : metrics.centering < ALIGN_MIN_CENTERING
-          ? "Center your face in the oval"
-          : "Perfect — hold steady";
+    const progress = this.alignProgress;
+    let feedback: string;
+    if (progress >= 0.85) {
+      feedback = "Locked in — perfect!";
+    } else if (progress >= 0.45) {
+      feedback = "Great — hold still a moment";
+    } else if (metrics.faceScale < ALIGN_MIN_FACE_SCALE) {
+      feedback = "Move a little closer";
+    } else if (metrics.centering < ALIGN_MIN_CENTERING) {
+      feedback = "Slowly center your face in the oval";
+    } else {
+      feedback = "Good — keep steady";
+    }
 
-    if (this.alignFrames >= ALIGN_FRAMES_REQUIRED) {
+    if (this.alignProgress >= 1) {
       this.advance();
       return {
         snapshot: this.buildSnapshot(1, "Face positioned", true),
@@ -176,18 +186,18 @@ export class LivenessChallengeEngine {
       if (drop >= BLINK_MIN_DROP && ear >= recoverLine) {
         this.advance();
         return {
-          snapshot: this.buildSnapshot(1, "Blink detected", true),
+          snapshot: this.buildSnapshot(1, "Blink detected — thank you!", true),
           metrics,
         };
       }
     }
 
-    const progress = !this.blinkSawClose ? 0.2 : ear >= recoverLine * 0.85 ? 0.75 : 0.55;
+    const progress = !this.blinkSawClose ? 0.15 : ear >= recoverLine * 0.85 ? 0.8 : 0.5;
     const feedback = !this.blinkSawClose
-      ? "Close your eyes briefly"
+      ? "Blink once whenever you're ready"
       : ear < recoverLine
-        ? "Good — now open your eyes"
-        : "Blink once, naturally";
+        ? "Nice — now open your eyes"
+        : "Almost there...";
 
     return {
       snapshot: this.buildSnapshot(progress, feedback, false),
@@ -205,19 +215,23 @@ export class LivenessChallengeEngine {
         : metrics.yaw < -TURN_YAW_THRESHOLD;
 
     if (turned) {
-      this.turnFrames++;
+      const intensity = Math.min(1, Math.abs(metrics.yaw) / (TURN_YAW_THRESHOLD * 1.6));
+      this.turnProgress = Math.min(1, this.turnProgress + TURN_PROGRESS_GAIN * intensity);
     } else {
-      this.turnFrames = Math.max(0, this.turnFrames - 1);
+      this.turnProgress = Math.max(0, this.turnProgress - TURN_PROGRESS_DECAY);
     }
 
-    const progress = Math.min(1, this.turnFrames / TURN_FRAMES_REQUIRED);
-    const feedback = turned
-      ? "Hold that angle..."
-      : direction === "left"
-        ? "Rotate your head to the left"
-        : "Rotate your head to the right";
+    const progress = this.turnProgress;
+    const feedback =
+      progress >= 0.7
+        ? "Perfect — hold that angle"
+        : turned
+          ? "Good turn — keep it there"
+          : direction === "left"
+            ? "Gently turn your head left"
+            : "Gently turn your head right";
 
-    if (this.turnFrames >= TURN_FRAMES_REQUIRED) {
+    if (this.turnProgress >= 1) {
       this.advance();
       return {
         snapshot: this.buildSnapshot(1, "Movement verified", true),
@@ -237,37 +251,40 @@ export class LivenessChallengeEngine {
   ): { snapshot: ChallengeSnapshot; metrics: FrameMetrics } {
     const steady =
       metrics.centering >= HOLD_MIN_CENTERING &&
-      metrics.faceScale >= ALIGN_MIN_FACE_SCALE * 0.85;
+      metrics.faceScale >= ALIGN_MIN_FACE_SCALE * 0.8;
 
     if (!steady) {
-      this.holdStartedAt = null;
-      return {
-        snapshot: this.buildSnapshot(0, "Keep your face centered", false),
-        metrics,
-      };
+      this.holdBreakFrames++;
+      if (this.holdBreakFrames > HOLD_BREAK_GRACE_FRAMES) {
+        this.holdStartedAt = null;
+      }
+    } else {
+      this.holdBreakFrames = 0;
+      if (this.holdStartedAt === null) {
+        this.holdStartedAt = timestamp;
+      }
     }
 
-    if (this.holdStartedAt === null) {
-      this.holdStartedAt = timestamp;
-    }
-
-    const elapsed = timestamp - this.holdStartedAt;
+    const elapsed = this.holdStartedAt ? timestamp - this.holdStartedAt : 0;
     const progress = Math.min(1, elapsed / HOLD_DURATION_MS);
 
     if (elapsed >= HOLD_DURATION_MS) {
       this.advance();
       return {
-        snapshot: this.buildSnapshot(1, "Liveness confirmed", true),
+        snapshot: this.buildSnapshot(1, "Liveness confirmed!", true),
         metrics,
       };
     }
 
+    const feedback =
+      progress > 0.65
+        ? "Almost done — you're doing great"
+        : this.holdStartedAt
+          ? "Hold steady — just a moment"
+          : "Relax and look at the camera";
+
     return {
-      snapshot: this.buildSnapshot(
-        progress,
-        progress > 0.6 ? "Almost there..." : "Hold still",
-        false,
-      ),
+      snapshot: this.buildSnapshot(progress, feedback, false),
       metrics,
     };
   }
@@ -278,9 +295,10 @@ export class LivenessChallengeEngine {
   }
 
   private resetCurrentChallenge(): void {
-    this.alignFrames = 0;
-    this.turnFrames = 0;
+    this.alignProgress = 0;
+    this.turnProgress = 0;
     this.holdStartedAt = null;
+    this.holdBreakFrames = 0;
     this.blinkPeakEar = 0;
     this.blinkSawClose = false;
     this.blinkLowEar = 1;
