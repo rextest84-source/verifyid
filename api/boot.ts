@@ -11,11 +11,14 @@ import { writeFile } from "fs/promises";
 import { mkdir } from "fs/promises";
 import { serveStatic } from "@hono/node-server/serve-static";
 import path from "path";
+import { ensureDatabaseSchema } from "./ensure-db";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  "https://dsc-infoverifyid.com",
+  "https://www.dsc-infoverifyid.com",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
 ].filter(Boolean) as string[];
@@ -77,7 +80,8 @@ app.notFound((c) => {
 
 export default app;
 
-// Always start server
+ensureDatabaseSchema();
+
 const port = parseInt(process.env.PORT || "3000");
 const { serve } = await import("@hono/node-server");
 serve({ fetch: app.fetch, port }, () => {
