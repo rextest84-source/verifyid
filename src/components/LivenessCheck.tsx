@@ -41,9 +41,11 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
           <h3 className="text-lg font-semibold text-slate-100">
             {phase === "success"
               ? "Liveness verified"
-              : phase === "running" || phase === "loading"
-                ? challenge.instruction
-                : "Interactive face verification"}
+              : phase === "running"
+                ? challenge.feedback
+                : phase === "loading"
+                  ? "Initializing camera..."
+                  : "Interactive face verification"}
           </h3>
           <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto">
             {phase === "idle"

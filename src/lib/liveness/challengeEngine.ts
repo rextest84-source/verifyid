@@ -2,9 +2,10 @@ import {
   ALIGN_FRAMES_REQUIRED,
   ALIGN_MIN_CENTERING,
   ALIGN_MIN_FACE_SCALE,
-  BLINK_CLOSED_EAR,
-  BLINK_OPEN_EAR,
+  BLINK_CLOSED_RATIO,
+  BLINK_OPEN_RATIO,
   CHALLENGES,
+  FACE_MISS_GRACE_FRAMES,
   HOLD_DURATION_MS,
   HOLD_MIN_CENTERING,
   TURN_FRAMES_REQUIRED,
@@ -26,13 +27,16 @@ export class LivenessChallengeEngine {
   private turnFrames = 0;
   private blinkPhase: BlinkPhase = "open";
   private holdStartedAt: number | null = null;
+  private missedFaceFrames = 0;
+  private lastProgress = 0;
+  private earBaseline = 0.28;
+  private earSamples: number[] = [];
 
   reset(): void {
     this.index = 0;
-    this.alignFrames = 0;
-    this.turnFrames = 0;
-    this.blinkPhase = "open";
-    this.holdStartedAt = null;
+    this.resetCurrentChallenge();
+    this.missedFaceFrames = 0;
+    this.lastProgress = 0;
   }
 
   get isComplete(): boolean {
@@ -55,17 +59,27 @@ export class LivenessChallengeEngine {
     }
 
     const config = CHALLENGES[this.index];
-    const metrics = face
-      ? { hasFace: true, ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH) }
-      : emptyMetrics();
 
     if (!face) {
-      this.resetCurrentChallenge();
+      this.missedFaceFrames++;
+      if (this.missedFaceFrames > FACE_MISS_GRACE_FRAMES) {
+        this.alignFrames = Math.max(0, this.alignFrames - 1);
+        this.turnFrames = Math.max(0, this.turnFrames - 1);
+      }
+
+      const feedback =
+        this.missedFaceFrames > 4
+          ? "Move your face back into the oval"
+          : config.instruction;
+
       return {
-        snapshot: this.buildSnapshot(0, "Position your face in view", false),
-        metrics,
+        snapshot: this.buildSnapshot(this.lastProgress, feedback, false),
+        metrics: emptyMetrics(),
       };
     }
+
+    this.missedFaceFrames = 0;
+    const metrics = { hasFace: true, ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH) };
 
     switch (config.id) {
       case "align":
@@ -97,13 +111,12 @@ export class LivenessChallengeEngine {
     if (aligned) {
       this.alignFrames++;
     } else {
-      this.alignFrames = Math.max(0, this.alignFrames - 2);
+      this.alignFrames = Math.max(0, this.alignFrames - 1);
     }
 
     const progress = Math.min(1, this.alignFrames / ALIGN_FRAMES_REQUIRED);
-    const feedback = !metrics.hasFace
-      ? "Looking for your face..."
-      : metrics.faceScale < ALIGN_MIN_FACE_SCALE
+    const feedback =
+      metrics.faceScale < ALIGN_MIN_FACE_SCALE
         ? "Move a little closer"
         : metrics.centering < ALIGN_MIN_CENTERING
           ? "Center your face in the oval"
@@ -127,16 +140,28 @@ export class LivenessChallengeEngine {
     snapshot: ChallengeSnapshot;
     metrics: FrameMetrics;
   } {
-    if (metrics.ear < BLINK_CLOSED_EAR) {
+    if (this.blinkPhase === "open") {
+      this.earSamples.push(metrics.ear);
+      if (this.earSamples.length > 12) this.earSamples.shift();
+      if (this.earSamples.length >= 3) {
+        const sorted = [...this.earSamples].sort((a, b) => a - b);
+        this.earBaseline = sorted[Math.floor(sorted.length / 2)];
+      }
+    }
+
+    const closedThreshold = this.earBaseline * BLINK_CLOSED_RATIO;
+    const openThreshold = this.earBaseline * BLINK_OPEN_RATIO;
+
+    if (metrics.ear < closedThreshold) {
       if (this.blinkPhase === "open") this.blinkPhase = "closing";
       if (this.blinkPhase === "closing") this.blinkPhase = "closed";
-    } else if (metrics.ear > BLINK_OPEN_EAR && this.blinkPhase === "closed") {
+    } else if (metrics.ear > openThreshold && this.blinkPhase === "closed") {
       this.advance();
       return {
         snapshot: this.buildSnapshot(1, "Blink detected", true),
         metrics,
       };
-    } else if (metrics.ear > BLINK_OPEN_EAR && this.blinkPhase === "closing") {
+    } else if (metrics.ear > openThreshold && this.blinkPhase === "closing") {
       this.blinkPhase = "open";
     }
 
@@ -202,7 +227,7 @@ export class LivenessChallengeEngine {
   ): { snapshot: ChallengeSnapshot; metrics: FrameMetrics } {
     const steady =
       metrics.centering >= HOLD_MIN_CENTERING &&
-      metrics.faceScale >= ALIGN_MIN_FACE_SCALE * 0.9;
+      metrics.faceScale >= ALIGN_MIN_FACE_SCALE * 0.85;
 
     if (!steady) {
       this.holdStartedAt = null;
@@ -247,6 +272,8 @@ export class LivenessChallengeEngine {
     this.turnFrames = 0;
     this.blinkPhase = "open";
     this.holdStartedAt = null;
+    this.earSamples = [];
+    this.earBaseline = 0.28;
   }
 
   private buildSnapshot(
@@ -255,6 +282,7 @@ export class LivenessChallengeEngine {
     isComplete: boolean,
   ): ChallengeSnapshot {
     const config = CHALLENGES[Math.min(this.index, CHALLENGES.length - 1)];
+    this.lastProgress = progress;
     return {
       id: config.id,
       index: Math.min(this.index, CHALLENGES.length - 1),
