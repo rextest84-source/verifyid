@@ -41,10 +41,10 @@ const STEPS = [
 
 export default function Home() {
   return (
-    <div className="space-y-24 pb-24">
-      <section className="relative overflow-hidden px-4 pt-20 pb-12">
-        <div className="mesh-orb w-[500px] h-[500px] bg-violet-500/12 top-0 left-1/2 -translate-x-1/2" />
-        <div className="max-w-3xl mx-auto text-center relative">
+    <div className="space-y-24 pb-24 w-full max-w-full overflow-x-hidden">
+      <section className="relative overflow-hidden px-4 pt-20 pb-12 w-full">
+        <div className="mesh-orb w-[min(100vw,28rem)] h-[min(100vw,28rem)] bg-violet-500/12 top-0 left-1/2 -translate-x-1/2" />
+        <div className="max-w-3xl mx-auto text-center relative w-full min-w-0">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 text-violet-300 text-xs font-semibold mb-8 border border-violet-500/25 shadow-sm shadow-violet-500/10">
             <Sparkles className="w-3.5 h-3.5" />
             Complete in under 5 minutes

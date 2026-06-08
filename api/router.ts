@@ -1,4 +1,5 @@
 import { authRouter } from "./auth-router";
+import { emailRouter } from "./email-router";
 import { verificationRouter } from "./verification-router";
 import { createRouter, publicQuery } from "./middleware";
 import { sendTestEmail } from "./email-service";
@@ -25,6 +26,7 @@ export const appRouter = createRouter({
       return sendTestEmail(input.email);
     }),
   auth: authRouter,
+  email: emailRouter,
   verification: verificationRouter,
 });
 
