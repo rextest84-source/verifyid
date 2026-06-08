@@ -7,16 +7,16 @@ export const CANVAS_WIDTH = 480;
 export const CANVAS_HEIGHT = 640;
 
 /** Target centering for full lock (progress still builds below this). */
-export const ALIGN_MIN_CENTERING = 0.3;
+export const ALIGN_MIN_CENTERING = 0.18;
 /** Target face size for full lock. */
-export const ALIGN_MIN_FACE_SCALE = 0.1;
+export const ALIGN_MIN_FACE_SCALE = 0.07;
 /** Lock-in speed when face is well positioned. */
-export const ALIGN_PROGRESS_GAIN = 0.095;
+export const ALIGN_PROGRESS_GAIN = 0.16;
 /** Gentle fade when face drifts away. */
-export const ALIGN_PROGRESS_DECAY = 0.025;
+export const ALIGN_PROGRESS_DECAY = 0.012;
 /** Minimum face presence to accumulate any align progress. */
-export const ALIGN_MIN_CENTERING_FLOOR = 0.16;
-export const ALIGN_MIN_SCALE_FLOOR = 0.055;
+export const ALIGN_MIN_CENTERING_FLOOR = 0.06;
+export const ALIGN_MIN_SCALE_FLOOR = 0.03;
 
 export const BLINK_DROP_RATIO = 0.84;
 export const BLINK_RECOVER_RATIO = 0.9;
@@ -42,7 +42,7 @@ export const FACE_MISS_GRACE_FRAMES = 28;
 
 /** Minimum time per step — prevents instant skip but stays reasonable. */
 export const MIN_STEP_MS = {
-  align: 350,
+  align: 250,
   blink: 650,
   turn_left: 450,
   turn_right: 450,
@@ -58,7 +58,7 @@ export const CHALLENGES: readonly ChallengeConfig[] = [
     id: "align",
     title: "Position",
     instruction: "Center your face in the oval",
-    hint: "Watch the scan line — the ring fills as we lock on",
+    hint: "Relax — the scanner finds you automatically. Ring turns green when locked.",
   },
   {
     id: "blink",

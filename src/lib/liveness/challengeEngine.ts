@@ -180,11 +180,11 @@ export class LivenessChallengeEngine {
 
     const progress = this.alignProgress;
     let feedback: string;
-    if (progress >= 0.85) {
+    if (progress >= 0.55) {
       feedback = "Locked in — perfect!";
-    } else if (progress >= 0.5) {
-      feedback = "Scanning — hold steady...";
-    } else if (progress >= 0.2) {
+    } else if (progress >= 0.3) {
+      feedback = "Scanning — almost locked...";
+    } else if (progress >= 0.1) {
       feedback = "Good — keep your face in the oval";
     } else if (metrics.faceScale < ALIGN_MIN_SCALE_FLOOR) {
       feedback = "Move a little closer";

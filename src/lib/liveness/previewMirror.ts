@@ -1,9 +1,6 @@
 /**
- * Controls CSS video mirror and detection-canvas flip so landmarks always land
- * in the same on-screen (selfie) coordinate space.
- *
- * Mobile / tablet front cameras usually deliver an already-mirrored feed.
- * Desktop webcams do not — we mirror for a natural selfie preview.
+ * Selfie preview mirroring — always mirror so left/right match a bathroom mirror.
+ * Detection frames are flipped the same way so overlays and yaw stay aligned.
  */
 export function isMobileLikeDevice(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -13,15 +10,23 @@ export function isMobileLikeDevice(): boolean {
     return true;
   }
 
-  // iPadOS 13+ reports as Macintosh but has touch
   if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) {
+    return true;
+  }
+
+  if (navigator.maxTouchPoints > 0 && typeof window !== "undefined" && window.innerWidth <= 1024) {
     return true;
   }
 
   return false;
 }
 
-/** True on desktop — apply CSS mirror + flip detection frames to display space. */
+/** Always mirror the live selfie preview (CSS + detection normalization). */
 export function shouldMirrorSelfiePreview(): boolean {
-  return !isMobileLikeDevice();
+  return true;
+}
+
+/** Flip detection frames so landmarks match the mirrored preview. */
+export function shouldFlipDetectionFrame(): boolean {
+  return true;
 }

@@ -11,7 +11,11 @@ import {
   TURN_DELTA_THRESHOLD,
 } from "../src/lib/liveness/constants.ts";
 import { computeYaw, extractMetrics } from "../src/lib/liveness/geometry.ts";
-import { isMobileLikeDevice, shouldMirrorSelfiePreview } from "../src/lib/liveness/previewMirror.ts";
+import {
+  isMobileLikeDevice,
+  shouldFlipDetectionFrame,
+  shouldMirrorSelfiePreview,
+} from "../src/lib/liveness/previewMirror.ts";
 import type { ChallengeId, FaceDetectionResult, FaceLandmarks, Point2D } from "../src/lib/liveness/types.ts";
 
 let passed = 0;
@@ -131,7 +135,8 @@ assert("display-space left turn → positive yaw", computeYaw(makeLandmarks(260,
 assert("display-space right turn → negative yaw", computeYaw(makeLandmarks(380, CENTER), box) < -0.3);
 
 console.log("\nPreview mirror tests\n");
-assert("mirror helpers are opposites", shouldMirrorSelfiePreview() === !isMobileLikeDevice());
+assert("preview is always mirrored", shouldMirrorSelfiePreview() === true);
+assert("detection flip matches device class", shouldFlipDetectionFrame() === !isMobileLikeDevice());
 
 console.log("\nChallenge engine — align\n");
 {

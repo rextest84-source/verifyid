@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/liveness/constants";
-import { shouldMirrorSelfiePreview } from "@/lib/liveness/previewMirror";
 import { useLivenessSession } from "@/lib/liveness/useLivenessSession";
 import {
   AlertCircle,
@@ -24,8 +23,6 @@ const CHALLENGE_LABELS = ["Align", "Blink", "Left", "Right", "Hold"];
 export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
   const { videoRef, canvasRef, phase, error, challenge, start, challengeCount } =
     useLivenessSession(onComplete);
-  const mirrorPreview = shouldMirrorSelfiePreview();
-
   const isActive = phase === "loading" || phase === "running" || phase === "success";
   const overallProgress =
     phase === "success"
@@ -143,7 +140,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
         >
           <video
             ref={videoRef}
-            className={`absolute inset-0 w-full h-full object-cover pointer-events-none [transform:translateZ(0)] [backface-visibility:hidden] ${mirrorPreview ? "-scale-x-100" : ""}`}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-0 [transform:translateZ(0)]"
             muted
             playsInline
             autoPlay
