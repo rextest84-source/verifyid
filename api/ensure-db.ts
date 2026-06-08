@@ -9,7 +9,7 @@ export function ensureDatabaseSchema(): void {
 
   try {
     console.log("[db] Applying schema...");
-    execSync("npx drizzle-kit push", {
+    execSync("npx drizzle-kit push --force", {
       stdio: "inherit",
       env: process.env,
     });
