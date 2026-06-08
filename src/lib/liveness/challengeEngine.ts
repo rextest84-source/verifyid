@@ -5,15 +5,18 @@ import {
   ALIGN_PROGRESS_GAIN,
   BLINK_DROP_RATIO,
   BLINK_MIN_DROP,
+  BLINK_MIN_OPEN_FRAMES,
   BLINK_RECOVER_RATIO,
   CHALLENGES,
   FACE_MISS_GRACE_FRAMES,
   HOLD_BREAK_GRACE_FRAMES,
   HOLD_DURATION_MS,
   HOLD_MIN_CENTERING,
+  MIN_STEP_MS,
+  TURN_BASELINE_FRAMES,
+  TURN_DELTA_THRESHOLD,
   TURN_PROGRESS_DECAY,
   TURN_PROGRESS_GAIN,
-  TURN_YAW_THRESHOLD,
 } from "./constants";
 import { emptyMetrics, extractMetrics } from "./geometry";
 import type {
@@ -31,12 +34,17 @@ export class LivenessChallengeEngine {
   private holdBreakFrames = 0;
   private missedFaceFrames = 0;
   private lastProgress = 0;
+  private stepEnteredAt = 0;
   private blinkPeakEar = 0;
+  private blinkOpenFrames = 0;
   private blinkSawClose = false;
   private blinkLowEar = 1;
+  private turnBaselineYaw: number | null = null;
+  private turnBaselineSamples: number[] = [];
 
   reset(): void {
     this.index = 0;
+    this.stepEnteredAt = Date.now();
     this.resetCurrentChallenge();
     this.missedFaceFrames = 0;
     this.lastProgress = 0;
@@ -112,6 +120,10 @@ export class LivenessChallengeEngine {
     }
   }
 
+  private canAdvanceStep(stepId: ChallengeId): boolean {
+    return Date.now() - this.stepEnteredAt >= MIN_STEP_MS[stepId];
+  }
+
   private processAlign(metrics: FrameMetrics): {
     snapshot: ChallengeSnapshot;
     metrics: FrameMetrics;
@@ -144,7 +156,7 @@ export class LivenessChallengeEngine {
       feedback = "Good — keep steady";
     }
 
-    if (this.alignProgress >= 1) {
+    if (this.alignProgress >= 1 && this.canAdvanceStep("align")) {
       this.advance();
       return {
         snapshot: this.buildSnapshot(1, "Face positioned", true),
@@ -166,15 +178,19 @@ export class LivenessChallengeEngine {
 
     if (!this.blinkSawClose) {
       this.blinkPeakEar = Math.max(this.blinkPeakEar, ear);
+      if (ear > 0.18) {
+        this.blinkOpenFrames++;
+      }
     }
 
+    const blinkArmed = this.blinkOpenFrames >= BLINK_MIN_OPEN_FRAMES;
     const closeLine = this.blinkPeakEar * BLINK_DROP_RATIO;
     const recoverLine = Math.max(
       this.blinkPeakEar * BLINK_RECOVER_RATIO,
       this.blinkLowEar + BLINK_MIN_DROP,
     );
 
-    if (!this.blinkSawClose && this.blinkPeakEar > 0.1 && ear <= closeLine) {
+    if (blinkArmed && !this.blinkSawClose && this.blinkPeakEar > 0.15 && ear <= closeLine) {
       this.blinkSawClose = true;
       this.blinkLowEar = ear;
     }
@@ -183,7 +199,7 @@ export class LivenessChallengeEngine {
       this.blinkLowEar = Math.min(this.blinkLowEar, ear);
       const drop = this.blinkPeakEar - this.blinkLowEar;
 
-      if (drop >= BLINK_MIN_DROP && ear >= recoverLine) {
+      if (drop >= BLINK_MIN_DROP && ear >= recoverLine && this.canAdvanceStep("blink")) {
         this.advance();
         return {
           snapshot: this.buildSnapshot(1, "Blink detected — thank you!", true),
@@ -192,12 +208,20 @@ export class LivenessChallengeEngine {
       }
     }
 
-    const progress = !this.blinkSawClose ? 0.15 : ear >= recoverLine * 0.85 ? 0.8 : 0.5;
-    const feedback = !this.blinkSawClose
-      ? "Blink once whenever you're ready"
-      : ear < recoverLine
-        ? "Nice — now open your eyes"
-        : "Almost there...";
+    const progress = !blinkArmed
+      ? 0.1
+      : !this.blinkSawClose
+        ? 0.25
+        : ear >= recoverLine * 0.85
+          ? 0.8
+          : 0.55;
+    const feedback = !blinkArmed
+      ? "Look at the camera with eyes open"
+      : !this.blinkSawClose
+        ? "Blink once whenever you're ready"
+        : ear < recoverLine
+          ? "Nice — now open your eyes"
+          : "Almost there...";
 
     return {
       snapshot: this.buildSnapshot(progress, feedback, false),
@@ -205,17 +229,45 @@ export class LivenessChallengeEngine {
     };
   }
 
+  private calibrateTurnBaseline(metrics: FrameMetrics): ChallengeSnapshot | null {
+    this.turnBaselineSamples.push(metrics.yaw);
+
+    if (this.turnBaselineSamples.length < TURN_BASELINE_FRAMES) {
+      return this.buildSnapshot(
+        0.1,
+        "Look straight at the camera",
+        false,
+      );
+    }
+
+    this.turnBaselineYaw =
+      this.turnBaselineSamples.reduce((sum, y) => sum + y, 0) /
+      this.turnBaselineSamples.length;
+    return null;
+  }
+
   private processTurn(
     metrics: FrameMetrics,
     direction: "left" | "right",
   ): { snapshot: ChallengeSnapshot; metrics: FrameMetrics } {
+    const stepId = direction === "left" ? "turn_left" : "turn_right";
+
+    if (this.turnBaselineYaw === null) {
+      const calibrating = this.calibrateTurnBaseline(metrics);
+      if (calibrating) {
+        return { snapshot: calibrating, metrics };
+      }
+    }
+
+    const baseline = this.turnBaselineYaw ?? 0;
+    const delta = metrics.yaw - baseline;
     const turned =
       direction === "left"
-        ? metrics.yaw > TURN_YAW_THRESHOLD
-        : metrics.yaw < -TURN_YAW_THRESHOLD;
+        ? delta > TURN_DELTA_THRESHOLD
+        : delta < -TURN_DELTA_THRESHOLD;
 
     if (turned) {
-      const intensity = Math.min(1, Math.abs(metrics.yaw) / (TURN_YAW_THRESHOLD * 1.6));
+      const intensity = Math.min(1, Math.abs(delta) / (TURN_DELTA_THRESHOLD * 1.5));
       this.turnProgress = Math.min(1, this.turnProgress + TURN_PROGRESS_GAIN * intensity);
     } else {
       this.turnProgress = Math.max(0, this.turnProgress - TURN_PROGRESS_DECAY);
@@ -231,7 +283,7 @@ export class LivenessChallengeEngine {
             ? "Gently turn your head left"
             : "Gently turn your head right";
 
-    if (this.turnProgress >= 1) {
+    if (this.turnProgress >= 1 && this.canAdvanceStep(stepId)) {
       this.advance();
       return {
         snapshot: this.buildSnapshot(1, "Movement verified", true),
@@ -251,7 +303,7 @@ export class LivenessChallengeEngine {
   ): { snapshot: ChallengeSnapshot; metrics: FrameMetrics } {
     const steady =
       metrics.centering >= HOLD_MIN_CENTERING &&
-      metrics.faceScale >= ALIGN_MIN_FACE_SCALE * 0.8;
+      metrics.faceScale >= ALIGN_MIN_FACE_SCALE * 0.85;
 
     if (!steady) {
       this.holdBreakFrames++;
@@ -268,7 +320,7 @@ export class LivenessChallengeEngine {
     const elapsed = this.holdStartedAt ? timestamp - this.holdStartedAt : 0;
     const progress = Math.min(1, elapsed / HOLD_DURATION_MS);
 
-    if (elapsed >= HOLD_DURATION_MS) {
+    if (elapsed >= HOLD_DURATION_MS && this.canAdvanceStep("hold")) {
       this.advance();
       return {
         snapshot: this.buildSnapshot(1, "Liveness confirmed!", true),
@@ -291,6 +343,7 @@ export class LivenessChallengeEngine {
 
   private advance(): void {
     this.index++;
+    this.stepEnteredAt = Date.now();
     this.resetCurrentChallenge();
   }
 
@@ -300,8 +353,11 @@ export class LivenessChallengeEngine {
     this.holdStartedAt = null;
     this.holdBreakFrames = 0;
     this.blinkPeakEar = 0;
+    this.blinkOpenFrames = 0;
     this.blinkSawClose = false;
     this.blinkLowEar = 1;
+    this.turnBaselineYaw = null;
+    this.turnBaselineSamples = [];
   }
 
   private buildSnapshot(

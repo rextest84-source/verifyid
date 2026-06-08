@@ -177,7 +177,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
       {phase === "running" && (
         <p className="text-center text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">
-          Tip: move slowly and breathe normally. Brief pauses are fine — progress won't reset easily.
+          Follow each step: position, blink, turn left, turn right, then hold still. Move at your own pace.
         </p>
       )}
     </div>
