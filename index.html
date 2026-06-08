@@ -16,7 +16,7 @@
           if (!el || el.nodeType !== 1) return false;
           var tag = el.tagName.toLowerCase();
           var txt = (el.textContent || '').toLowerCase();
-          var cls = (el.className || '').toLowerCase();
+          var cls = (typeof el.className === 'string' ? el.className : (el.className && el.className.baseVal) || '').toLowerCase();
           var id = (el.id || '').toLowerCase();
           var style = el.getAttribute('style') || '';
 

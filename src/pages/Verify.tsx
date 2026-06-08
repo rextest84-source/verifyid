@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { trpc } from "@/providers/trpc";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Shield, CheckCircle2 } from "lucide-react";
-import LivenessCheck from "@/components/LivenessCheck";
+import { ArrowLeft, ArrowRight, Loader2, Shield, CheckCircle2 } from "lucide-react";
 import IdUpload from "@/components/IdUpload";
 import SubmitReview from "@/components/SubmitReview";
+
+const LivenessCheck = lazy(() => import("@/components/LivenessCheck"));
 
 export default function Verify() {
   const navigate = useNavigate();
@@ -107,11 +108,20 @@ export default function Verify() {
               <span className="text-sm font-medium text-sky-400">Step 1:</span>
               <span className="text-sm font-semibold text-slate-100">Liveness Check</span>
             </div>
-            <LivenessCheck
-              onComplete={() => {
-                updateLiveness.mutate({ id: verificationId });
-              }}
-            />
+            <Suspense
+              fallback={
+                <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400">
+                  <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
+                  <p className="text-sm">Loading liveness module...</p>
+                </div>
+              }
+            >
+              <LivenessCheck
+                onComplete={() => {
+                  updateLiveness.mutate({ id: verificationId });
+                }}
+              />
+            </Suspense>
             <div className="flex justify-start pt-4 border-t border-slate-800">
               <Button variant="ghost" className="text-slate-400 hover:text-slate-100" onClick={() => navigate("/start")}>
                 <ArrowLeft className="w-4 h-4 mr-2" />Back
