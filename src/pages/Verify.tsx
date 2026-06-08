@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { trpc } from "@/providers/trpc";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ export default function Verify() {
   const [step, setStep] = useState(1);
   const [verificationId, setVerificationId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [livenessSessionKey, setLivenessSessionKey] = useState(0);
+  const [idUploadKey, setIdUploadKey] = useState(0);
+  const initialStepSynced = useRef(false);
 
   const utils = trpc.useUtils();
 
@@ -31,15 +34,19 @@ export default function Verify() {
     { enabled: !!verificationId, refetchInterval: 5000 }
   );
 
+  // Sync step from server only on first load — don't override manual Back navigation.
   useEffect(() => {
-    if (verification) {
-      if (verification.status === "pending_review" || verification.status === "approved") {
-        setStep(4);
-      } else if (verification.livenessVerified && verification.idVerified) {
-        setStep(3);
-      } else if (verification.livenessVerified && !verification.idVerified) {
-        setStep(2);
-      }
+    if (!verification || initialStepSynced.current) return;
+    initialStepSynced.current = true;
+
+    if (verification.status === "pending_review" || verification.status === "approved") {
+      setStep(4);
+    } else if (verification.livenessVerified && verification.idVerified) {
+      setStep(3);
+    } else if (verification.livenessVerified && !verification.idVerified) {
+      setStep(2);
+    } else {
+      setStep(1);
     }
   }, [verification]);
 
@@ -49,6 +56,32 @@ export default function Verify() {
       setStep(2);
     },
   });
+
+  const resetLiveness = trpc.verification.resetLiveness.useMutation({
+    onSuccess: () => {
+      utils.verification.getById.invalidate({ id: verificationId ?? 0 });
+    },
+  });
+
+  const resetIdDocument = trpc.verification.resetIdDocument.useMutation({
+    onSuccess: () => {
+      utils.verification.getById.invalidate({ id: verificationId ?? 0 });
+    },
+  });
+
+  const handleBackToLiveness = async () => {
+    if (!verificationId) return;
+    await resetLiveness.mutateAsync({ id: verificationId });
+    setLivenessSessionKey((k) => k + 1);
+    setStep(1);
+  };
+
+  const handleBackToIdUpload = async () => {
+    if (!verificationId) return;
+    await resetIdDocument.mutateAsync({ id: verificationId });
+    setIdUploadKey((k) => k + 1);
+    setStep(2);
+  };
 
   if (loading) {
     return (
@@ -66,6 +99,8 @@ export default function Verify() {
     { num: 3, label: "Review & Submit" },
   ];
 
+  const redoingLiveness = resetLiveness.isPending;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-8">
@@ -75,7 +110,6 @@ export default function Verify() {
         </div>
         <p className="text-sm text-slate-400 mb-6">3 quick steps — under 5 minutes</p>
 
-        {/* Step indicator */}
         <div className="flex items-center gap-3 mb-6">
           {steps.map((s, idx) => (
             <div key={s.num} className="flex items-center gap-3">
@@ -95,7 +129,6 @@ export default function Verify() {
           ))}
         </div>
 
-        {/* Progress bar */}
         <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
           <div className="h-full bg-sky-500 transition-all duration-500" style={{ width: `${((step - 1) / 3) * 100}%` }} />
         </div>
@@ -117,6 +150,7 @@ export default function Verify() {
               }
             >
               <LivenessCheck
+                key={livenessSessionKey}
                 onComplete={(snapshotUrl) => {
                   updateLiveness.mutate({
                     id: verificationId,
@@ -140,6 +174,7 @@ export default function Verify() {
               <span className="text-sm font-semibold text-slate-100">ID Document</span>
             </div>
             <IdUpload
+              key={idUploadKey}
               verificationId={verificationId}
               onComplete={() => {
                 utils.verification.getById.invalidate({ id: verificationId });
@@ -147,8 +182,18 @@ export default function Verify() {
               }}
             />
             <div className="flex justify-start pt-4 border-t border-slate-800">
-              <Button variant="ghost" className="text-slate-400 hover:text-slate-100" onClick={() => setStep(1)}>
-                <ArrowLeft className="w-4 h-4 mr-2" />Back
+              <Button
+                variant="ghost"
+                className="text-slate-400 hover:text-slate-100"
+                onClick={() => void handleBackToLiveness()}
+                disabled={redoingLiveness}
+              >
+                {redoingLiveness ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                )}
+                Back
               </Button>
             </div>
           </div>
@@ -170,8 +215,18 @@ export default function Verify() {
               }}
             />
             <div className="flex justify-start pt-4 border-t border-slate-800">
-              <Button variant="ghost" className="text-slate-400 hover:text-slate-100" onClick={() => setStep(2)}>
-                <ArrowLeft className="w-4 h-4 mr-2" />Back
+              <Button
+                variant="ghost"
+                className="text-slate-400 hover:text-slate-100"
+                onClick={() => void handleBackToIdUpload()}
+                disabled={resetIdDocument.isPending}
+              >
+                {resetIdDocument.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                )}
+                Back
               </Button>
             </div>
           </div>
