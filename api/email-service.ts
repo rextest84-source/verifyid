@@ -1,13 +1,26 @@
 import { Resend } from "resend";
 import { readFile } from "fs/promises";
 import path from "path";
+import { env } from "./lib/env";
 
-const apiKey = process.env.RESEND_API_KEY;
-const resend = apiKey ? new Resend(apiKey) : null;
+let resendClient: Resend | null = null;
+
+function getResend(): Resend | null {
+  if (!env.resendApiKey) return null;
+  if (!resendClient) resendClient = new Resend(env.resendApiKey);
+  return resendClient;
+}
 
 function log(stage: string, data: Record<string, unknown>) {
   console.log(`[EMAIL ${stage}]`, JSON.stringify(data));
 }
+
+export type EmailSendResult = {
+  sent: boolean;
+  mock: boolean;
+  id?: string;
+  error?: string;
+};
 
 /* ====== READ IMAGE AS BASE64 ====== */
 
@@ -25,22 +38,40 @@ async function imageToBase64(imageUrl: string | null): Promise<string | null> {
   }
 }
 
-/* ====== USER CONFIRMATION EMAIL ====== */
-
-export async function sendUserConfirmation(userEmail: string, name: string) {
-  log("USER_START", { to: userEmail });
-
+async function sendEmail(payload: {
+  to: string | string[];
+  subject: string;
+  html?: string;
+  text?: string;
+}): Promise<EmailSendResult> {
+  const resend = getResend();
   if (!resend) {
-    log("USER_NO_RESEND", {});
-    return { sent: false, mock: true, error: "No Resend API key" };
+    return { sent: false, mock: true, error: "No Resend API key configured" };
   }
 
   try {
     const result = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: userEmail,
-      subject: "VerifyID - Submission Received",
-      html: `<!DOCTYPE html>
+      from: env.resendFromEmail,
+      to: payload.to,
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text,
+    });
+    return { sent: true, mock: false, id: result?.data?.id };
+  } catch (err: any) {
+    return { sent: false, mock: true, error: err?.message ?? "Email send failed" };
+  }
+}
+
+/* ====== USER CONFIRMATION EMAIL ====== */
+
+export async function sendUserConfirmation(userEmail: string, name: string): Promise<EmailSendResult> {
+  log("USER_START", { to: userEmail, from: env.resendFromEmail });
+
+  const result = await sendEmail({
+    to: userEmail,
+    subject: "VerifyID - Submission Received",
+    html: `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px;">
@@ -73,13 +104,11 @@ export async function sendUserConfirmation(userEmail: string, name: string) {
 </table>
 </td></tr></table>
 </body></html>`,
-    });
-    log("USER_SENT", { to: userEmail, id: result?.data?.id });
-    return { sent: true, mock: false, id: result?.data?.id };
-  } catch (err: any) {
-    log("USER_ERROR", { to: userEmail, err: err?.message, code: err?.statusCode });
-    return { sent: false, mock: true, error: err?.message };
-  }
+  });
+
+  if (result.sent) log("USER_SENT", { to: userEmail, id: result.id });
+  else log("USER_ERROR", { to: userEmail, err: result.error });
+  return result;
 }
 
 /* ====== ADMIN NOTIFICATION EMAIL ====== */
@@ -91,16 +120,11 @@ export async function sendAdminAlert(data: {
   livenessVerified: Date | null;
   idVerified: Date | null;
   createdAt: Date | null;
-}) {
-  const admin = "rextest84@gmail.com";
-  log("ADMIN_START", { to: admin, applicant: data.email });
+}): Promise<EmailSendResult> {
+  const admin = env.adminNotificationEmail;
+  log("ADMIN_START", { to: admin, applicant: data.email, from: env.resendFromEmail });
 
-  if (!resend) {
-    log("ADMIN_NO_RESEND", {});
-    return { sent: false, mock: true, error: "No Resend API key" };
-  }
-
-  const fmt = (d: Date | null) => d ? new Date(d).toLocaleString() : "N/A";
+  const fmt = (d: Date | null) => (d ? new Date(d).toLocaleString() : "N/A");
   const img64 = await imageToBase64(data.idImageUrl);
 
   const imgBlock = img64
@@ -112,12 +136,10 @@ export async function sendAdminAlert(data: {
          <p style="font-size:13px;color:#94a3b8;margin:0;">No ID document uploaded.</p>
        </td></tr><tr><td style="height:16px;"></td></tr>`;
 
-  try {
-    const result = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: admin,
-      subject: `[VerifyID] New Submission - ${data.name}`,
-      html: `<!DOCTYPE html>
+  const result = await sendEmail({
+    to: admin,
+    subject: `[VerifyID] New Submission - ${data.name}`,
+    html: `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px;">
@@ -146,33 +168,25 @@ ${imgBlock}
 </table>
 </td></tr></table>
 </body></html>`,
-    });
-    log("ADMIN_SENT", { to: admin, id: result?.data?.id });
-    return { sent: true, mock: false, id: result?.data?.id };
-  } catch (err: any) {
-    log("ADMIN_ERROR", { to: admin, err: err?.message, code: err?.statusCode });
-    return { sent: false, mock: true, error: err?.message };
-  }
+  });
+
+  if (result.sent) log("ADMIN_SENT", { to: admin, id: result.id });
+  else log("ADMIN_ERROR", { to: admin, err: result.error });
+  return result;
 }
 
 /* ====== TEST EMAIL ====== */
 
-export async function sendTestEmail(toEmail: string) {
-  log("TEST_START", { to: toEmail });
+export async function sendTestEmail(toEmail: string): Promise<EmailSendResult> {
+  log("TEST_START", { to: toEmail, from: env.resendFromEmail });
 
-  if (!resend) return { sent: false, mock: true, error: "No Resend API key" };
+  const result = await sendEmail({
+    to: toEmail,
+    subject: "VerifyID - Email Test",
+    text: "If you received this, VerifyID email delivery is working.",
+  });
 
-  try {
-    const result = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: toEmail,
-      subject: "VerifyID - Email Test",
-      text: "If you received this, VerifyID email delivery is working.",
-    });
-    log("TEST_SENT", { to: toEmail, id: result?.data?.id });
-    return { sent: true, mock: false, id: result?.data?.id };
-  } catch (err: any) {
-    log("TEST_ERROR", { to: toEmail, err: err?.message });
-    return { sent: false, mock: true, error: err?.message };
-  }
+  if (result.sent) log("TEST_SENT", { to: toEmail, id: result.id });
+  else log("TEST_ERROR", { to: toEmail, err: result.error });
+  return result;
 }

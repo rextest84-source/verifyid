@@ -2,13 +2,16 @@ import { authRouter } from "./auth-router";
 import { verificationRouter } from "./verification-router";
 import { createRouter, publicQuery } from "./middleware";
 import { sendTestEmail } from "./email-service";
+import { env } from "./lib/env";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
   health: publicQuery.query(() => ({
     ok: true,
-    resendConfigured: !!process.env.RESEND_API_KEY,
-    resendKeyPrefix: process.env.RESEND_API_KEY ? process.env.RESEND_API_KEY.slice(0, 8) + "..." : "none",
+    resendConfigured: !!env.resendApiKey,
+    resendKeyPrefix: env.resendApiKey ? env.resendApiKey.slice(0, 8) + "..." : "none",
+    resendFromEmail: env.resendFromEmail,
+    adminNotificationEmail: env.adminNotificationEmail,
     env: process.env.NODE_ENV || "development",
     ts: Date.now(),
   })),
