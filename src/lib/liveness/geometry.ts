@@ -1,7 +1,7 @@
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "./constants";
 import type { FaceBox, FaceLandmarks, FrameMetrics, Point2D } from "./types";
 
-/** Map a point from camera pixels to canvas coords (object-cover crop + mirror). */
+/** Map a point from camera pixels to canvas coords (object-cover crop, optional mirror). */
 export function mapVideoToCanvas(
   x: number,
   y: number,
@@ -9,6 +9,7 @@ export function mapVideoToCanvas(
   videoH: number,
   canvasW = CANVAS_WIDTH,
   canvasH = CANVAS_HEIGHT,
+  mirror = true,
 ): Point2D {
   const videoAspect = videoW / videoH;
   const canvasAspect = canvasW / canvasH;
@@ -33,7 +34,7 @@ export function mapVideoToCanvas(
   const nx = (x - sourceX) / sourceW;
   const ny = (y - sourceY) / sourceH;
   return {
-    x: canvasW - nx * canvasW,
+    x: mirror ? canvasW - nx * canvasW : nx * canvasW,
     y: ny * canvasH,
   };
 }
@@ -60,17 +61,22 @@ export function computeEar(landmarks: FaceLandmarks): number {
 }
 
 /**
- * Normalized yaw in mirrored selfie-preview space (matches the on-screen video).
- * Positive = nose shifts toward the left side of the preview — same as "turn left".
+ * Normalized yaw where positive = user turned their head to their own left.
+ * Mobile front cameras often deliver mirrored sensor frames; desktop does not.
  */
-export function computeYaw(landmarks: FaceLandmarks, box: FaceBox): number {
+export function computeYaw(
+  landmarks: FaceLandmarks,
+  box: FaceBox,
+  sensorMirrored = false,
+): number {
   const nose = landmarks.getNose();
   if (!nose.length) return 0;
 
   const noseTip = nose[Math.floor(nose.length / 2)];
   const faceCenterX = box.x + box.width / 2;
   const halfWidth = Math.max(box.width / 2, 1);
-  return (faceCenterX - noseTip.x) / halfWidth;
+  const raw = (noseTip.x - faceCenterX) / halfWidth;
+  return sensorMirrored ? -raw : raw;
 }
 
 export function computeCentering(box: FaceBox, videoW: number, videoH: number): number {
@@ -90,12 +96,13 @@ export function extractMetrics(
   box: FaceBox,
   videoW: number,
   videoH: number,
+  sensorMirrored = false,
 ): Omit<FrameMetrics, "hasFace"> {
   return {
     centering: computeCentering(box, videoW, videoH),
     faceScale: computeFaceScale(box, videoW),
     ear: computeEar(landmarks),
-    yaw: computeYaw(landmarks, box),
+    yaw: computeYaw(landmarks, box, sensorMirrored),
   };
 }
 

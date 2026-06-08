@@ -1,4 +1,5 @@
 import { apiUrl } from "@/lib/api";
+import { shouldMirrorSelfiePreview } from "@/lib/liveness/previewMirror";
 
 export async function uploadImageFile(file: Blob, filename: string): Promise<string | null> {
   const formData = new FormData();
@@ -24,6 +25,10 @@ export async function captureVideoFrame(video: HTMLVideoElement): Promise<Blob |
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
+  if (shouldMirrorSelfiePreview()) {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
   ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   return new Promise((resolve) => {

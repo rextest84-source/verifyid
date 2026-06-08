@@ -11,6 +11,7 @@ import {
 import { detectFace, loadFaceModels, preloadFaceModels } from "./faceModels";
 import { renderLivenessFrame } from "./canvasRenderer";
 import { emptyMetrics } from "./geometry";
+import { shouldMirrorSelfiePreview } from "./previewMirror";
 import { captureVideoFrame, uploadImageFile } from "@/lib/upload";
 import type {
   ChallengeSnapshot,
@@ -292,6 +293,8 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
     canvas.height = CANVAS_HEIGHT;
 
     let running = true;
+    const mirrorPreview = shouldMirrorSelfiePreview();
+    const sensorMirrored = !mirrorPreview;
 
     const runDetection = (now: number) => {
       if (!running || detectInFlightRef.current || !video.videoWidth) return;
@@ -321,6 +324,7 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
             video.videoWidth,
             video.videoHeight,
             Date.now(),
+            sensorMirrored,
           );
 
           challengeRef.current = snapshot;
@@ -372,7 +376,7 @@ export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
           sensors: liveSensors,
         };
 
-        renderLivenessFrame(ctx, renderState, video.videoWidth, video.videoHeight);
+        renderLivenessFrame(ctx, renderState, video.videoWidth, video.videoHeight, mirrorPreview);
       }
 
       animRef.current = requestAnimationFrame(tick);

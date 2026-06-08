@@ -17,13 +17,13 @@ const FEATURES = [
     icon: Eye,
     title: "Liveness Check",
     desc: "Guided blink, turn, and hold — real-time anti-spoof with on-screen arrows",
-    accent: "from-sky-500/20 to-cyan-500/5",
+    accent: "from-violet-500/20 to-fuchsia-500/5",
   },
   {
     icon: CreditCard,
     title: "ID Document",
     desc: "Scan your ID with smart framing and instant field extraction",
-    accent: "from-cyan-500/20 to-teal-500/5",
+    accent: "from-fuchsia-500/20 to-teal-500/5",
   },
   {
     icon: Mail,
@@ -43,9 +43,9 @@ export default function Home() {
   return (
     <div className="space-y-24 pb-24">
       <section className="relative overflow-hidden px-4 pt-20 pb-12">
-        <div className="mesh-orb w-[500px] h-[500px] bg-sky-500/12 top-0 left-1/2 -translate-x-1/2" />
+        <div className="mesh-orb w-[500px] h-[500px] bg-violet-500/12 top-0 left-1/2 -translate-x-1/2" />
         <div className="max-w-3xl mx-auto text-center relative">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-sky-500/10 text-sky-300 text-xs font-semibold mb-8 border border-sky-500/25 shadow-sm shadow-sky-500/10">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 text-violet-300 text-xs font-semibold mb-8 border border-violet-500/25 shadow-sm shadow-violet-500/10">
             <Sparkles className="w-3.5 h-3.5" />
             Complete in under 5 minutes
           </div>
@@ -72,7 +72,7 @@ export default function Home() {
 
           <div className="flex flex-wrap items-center justify-center gap-6 mt-12 text-sm text-slate-500">
             <span className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-sky-400" />
+              <Zap className="w-4 h-4 text-violet-400" />
               Real-time liveness
             </span>
             <span className="flex items-center gap-2">
@@ -80,7 +80,7 @@ export default function Home() {
               Encrypted & secure
             </span>
             <span className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-cyan-400" />
+              <CheckCircle2 className="w-4 h-4 text-fuchsia-400" />
               Mobile optimized
             </span>
           </div>
@@ -106,8 +106,8 @@ export default function Home() {
                   className={`absolute inset-0 bg-gradient-to-br ${f.accent} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
                 />
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-xl bg-sky-500/15 flex items-center justify-center mb-4 border border-sky-500/20">
-                    <f.icon className="w-6 h-6 text-sky-400" />
+                  <div className="w-12 h-12 rounded-xl bg-violet-500/15 flex items-center justify-center mb-4 border border-violet-500/20">
+                    <f.icon className="w-6 h-6 text-violet-400" />
                   </div>
                   <h3 className="font-semibold text-slate-100 mb-2">{f.title}</h3>
                   <p className="text-sm text-slate-400 leading-relaxed">{f.desc}</p>
@@ -129,7 +129,7 @@ export default function Home() {
                 key={item.step}
                 className="glass-card flex items-start gap-4 p-5 hover:border-slate-700/80 transition-colors"
               >
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-sky-500/20 to-cyan-500/10 flex items-center justify-center text-sky-300 font-bold shrink-0 border border-sky-500/25">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 flex items-center justify-center text-violet-300 font-bold shrink-0 border border-violet-500/25">
                   {item.step}
                 </div>
                 <div>
@@ -145,7 +145,7 @@ export default function Home() {
       <section className="px-4">
         <div className="max-w-xl mx-auto text-center glass-card p-10 relative overflow-hidden">
           <div className="absolute inset-x-0 top-0 h-px shimmer-border" />
-          <Shield className="w-12 h-12 text-sky-400 mx-auto mb-5 animate-float" />
+          <Shield className="w-12 h-12 text-violet-400 mx-auto mb-5 animate-float" />
           <h2 className="text-xl font-bold text-slate-100 mb-3">Ready to Verify?</h2>
           <p className="text-slate-400 mb-7 leading-relaxed">
             Complete your identity verification in minutes with our guided camera
