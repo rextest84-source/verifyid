@@ -46,19 +46,19 @@ export default function Start() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4">
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-sky-500/10 flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-7 h-7 text-sky-400" />
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 to-cyan-500/10 flex items-center justify-center mx-auto mb-5 border border-sky-500/25 shadow-lg shadow-sky-500/10">
+            <Shield className="w-8 h-8 text-sky-400" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100 mb-2">
-            Enter your details to start verification
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2">
+            Start verification
           </h1>
-          <p className="text-slate-400 text-sm">Get Started — Takes less than 5 minutes</p>
+          <p className="text-slate-400 text-sm">Takes less than 5 minutes</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="glass-card p-6 md:p-8 space-y-5">
           <div className="space-y-2">
             <Label htmlFor="name" className="text-slate-300">
               Full Name
@@ -91,11 +91,7 @@ export default function Start() {
             </div>
           )}
 
-          <Button
-            type="submit"
-            className="w-full bg-sky-500 hover:bg-sky-600 text-white"
-            disabled={createMutation.isPending}
-          >
+          <Button type="submit" className="w-full btn-glow font-semibold" disabled={createMutation.isPending}>
             {createMutation.isPending ? "Starting..." : "Start Verification"}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>

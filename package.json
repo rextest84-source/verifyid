@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "test:yaw": "node scripts/test-yaw.mjs",
     "build:netlify": "node scripts/check-netlify-env.mjs && vite build",
     "db:push": "drizzle-kit push",
     "start": "npx tsx api/boot.ts"

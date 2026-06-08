@@ -228,6 +228,60 @@ function drawLockBadge(ctx: CanvasRenderingContext2D, w: number, lockPhase: Lock
   ctx.restore();
 }
 
+function drawTurnArrow(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  direction: "left" | "right",
+  progress: number,
+) {
+  const offsetX = direction === "left" ? -OVAL_RX * 0.72 : OVAL_RX * 0.72;
+  const ax = cx + offsetX;
+  const ay = cy;
+  const pulse = 0.85 + Math.sin(Date.now() * 0.006) * 0.15;
+  const alpha = 0.55 + progress * 0.45;
+
+  ctx.save();
+  ctx.globalAlpha = alpha * pulse;
+
+  const grad = ctx.createRadialGradient(ax, ay, 0, ax, ay, 36);
+  grad.addColorStop(0, "rgba(56, 189, 248, 0.35)");
+  grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(ax, ay, 36, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = progress >= 0.7 ? "#4ade80" : "#38bdf8";
+  ctx.fillStyle = progress >= 0.7 ? "#4ade80" : "#7dd3fc";
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const dir = direction === "left" ? -1 : 1;
+  const tipX = ax + dir * 18;
+  const tailX = ax - dir * 10;
+
+  ctx.beginPath();
+  ctx.moveTo(tailX, ay);
+  ctx.lineTo(tipX, ay);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(tipX, ay);
+  ctx.lineTo(tipX - dir * 10, ay - 8);
+  ctx.lineTo(tipX - dir * 10, ay + 8);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.font = "600 10px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#e2e8f0";
+  ctx.fillText(direction === "left" ? "LEFT" : "RIGHT", ax, ay + 34);
+
+  ctx.restore();
+}
+
 function drawStatusBar(ctx: CanvasRenderingContext2D, w: number, h: number, text: string) {
   ctx.save();
   const barH = 44;
@@ -261,6 +315,16 @@ export function renderLivenessFrame(
   drawVignette(ctx, w, h);
   drawGuideOval(ctx, w, h, state.challenge.progress, lockPhase, color);
   drawFaceGuidance(ctx, state, videoW, videoH, lockPhase);
+
+  if (state.phase === "running") {
+    const cx = w / 2;
+    const cy = h / 2;
+    if (state.challenge.id === "turn_left") {
+      drawTurnArrow(ctx, cx, cy, "left", state.challenge.progress);
+    } else if (state.challenge.id === "turn_right") {
+      drawTurnArrow(ctx, cx, cy, "right", state.challenge.progress);
+    }
+  }
 
   if (state.phase === "running") {
     drawLockBadge(ctx, w, lockPhase);
