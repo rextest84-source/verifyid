@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LivenessChallengeEngine } from "./challengeEngine";
-import { CANVAS_HEIGHT, CANVAS_WIDTH, CHALLENGES } from "./constants";
+import { CANVAS_HEIGHT, CANVAS_WIDTH, CHALLENGES, DETECTION_INTERVAL_MS } from "./constants";
 import { detectFace, loadFaceModels } from "./faceModels";
 import { renderLivenessFrame } from "./canvasRenderer";
 import { emptyMetrics } from "./geometry";
@@ -66,6 +66,7 @@ export function useLivenessSession(onComplete: () => void) {
   const challengeRef = useRef(INITIAL_CHALLENGE);
   const metricsRef = useRef(emptyMetrics());
   const detectingRef = useRef(false);
+  const detectTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   onCompleteRef.current = onComplete;
 
   const [phase, setPhase] = useState<LivenessPhase>("idle");
@@ -85,6 +86,10 @@ export function useLivenessSession(onComplete: () => void) {
     }
     faceRef.current = null;
     detectingRef.current = false;
+    if (detectTimerRef.current) {
+      clearInterval(detectTimerRef.current);
+      detectTimerRef.current = null;
+    }
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
@@ -197,12 +202,13 @@ export function useLivenessSession(onComplete: () => void) {
         });
     };
 
+    detectTimerRef.current = setInterval(runDetection, DETECTION_INTERVAL_MS);
+    runDetection();
+
     const tick = (timestamp: number) => {
       if (!running) return;
 
       if (!video.paused && !video.ended && video.videoWidth) {
-        if (!detectingRef.current) runDetection();
-
         const face = faceRef.current;
         const snapshot = challengeRef.current;
         const renderState: RenderState = {
@@ -223,6 +229,10 @@ export function useLivenessSession(onComplete: () => void) {
     return () => {
       running = false;
       cancelAnimationFrame(animRef.current);
+      if (detectTimerRef.current) {
+        clearInterval(detectTimerRef.current);
+        detectTimerRef.current = null;
+      }
     };
   }, [phase, stopCamera]);
 

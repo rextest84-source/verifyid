@@ -6,18 +6,24 @@ export const FACE_API_WEIGHTS =
 export const CANVAS_WIDTH = 480;
 export const CANVAS_HEIGHT = 640;
 
-export const ALIGN_MIN_CENTERING = 0.62;
-export const ALIGN_MIN_FACE_SCALE = 0.28;
-export const ALIGN_FRAMES_REQUIRED = 18;
+export const ALIGN_MIN_CENTERING = 0.42;
+export const ALIGN_MIN_FACE_SCALE = 0.16;
+export const ALIGN_FRAMES_REQUIRED = 8;
 
-export const BLINK_CLOSED_EAR = 0.2;
-export const BLINK_OPEN_EAR = 0.24;
+export const BLINK_CLOSED_RATIO = 0.58;
+export const BLINK_OPEN_RATIO = 0.88;
 
-export const TURN_YAW_THRESHOLD = 0.14;
-export const TURN_FRAMES_REQUIRED = 14;
+export const TURN_YAW_THRESHOLD = 0.1;
+export const TURN_FRAMES_REQUIRED = 8;
 
-export const HOLD_DURATION_MS = 1800;
-export const HOLD_MIN_CENTERING = 0.55;
+export const HOLD_DURATION_MS = 1200;
+export const HOLD_MIN_CENTERING = 0.4;
+
+/** Consecutive missed detections before challenge progress decays. */
+export const FACE_MISS_GRACE_FRAMES = 12;
+
+/** Run face detection about this often (ms). */
+export const DETECTION_INTERVAL_MS = 100;
 
 export const CHALLENGES: readonly ChallengeConfig[] = [
   {

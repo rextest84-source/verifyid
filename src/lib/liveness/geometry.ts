@@ -69,7 +69,8 @@ export function computeYaw(landmarks: FaceLandmarks, box: FaceBox): number {
   const noseTip = nose[Math.floor(nose.length / 2)];
   const faceCenterX = box.x + box.width / 2;
   const halfWidth = Math.max(box.width / 2, 1);
-  return (noseTip.x - faceCenterX) / halfWidth;
+  // Negate so directions match what the user sees in the mirrored selfie preview.
+  return -((noseTip.x - faceCenterX) / halfWidth);
 }
 
 export function computeCentering(box: FaceBox, videoW: number, videoH: number): number {
