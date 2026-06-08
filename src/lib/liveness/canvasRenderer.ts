@@ -17,10 +17,33 @@ function drawMirroredVideo(
   w: number,
   h: number,
 ) {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return;
+
+  const videoAspect = vw / vh;
+  const canvasAspect = w / h;
+  let sx: number;
+  let sy: number;
+  let sWidth: number;
+  let sHeight: number;
+
+  if (videoAspect > canvasAspect) {
+    sHeight = vh;
+    sWidth = vh * canvasAspect;
+    sx = (vw - sWidth) / 2;
+    sy = 0;
+  } else {
+    sWidth = vw;
+    sHeight = vw / canvasAspect;
+    sx = 0;
+    sy = (vh - sHeight) / 2;
+  }
+
   ctx.save();
   ctx.translate(w, 0);
   ctx.scale(-1, 1);
-  ctx.drawImage(video, 0, 0, w, h);
+  ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
   ctx.restore();
 }
 
