@@ -10,8 +10,12 @@ export const ALIGN_MIN_CENTERING = 0.42;
 export const ALIGN_MIN_FACE_SCALE = 0.16;
 export const ALIGN_FRAMES_REQUIRED = 8;
 
-export const BLINK_CLOSED_RATIO = 0.58;
-export const BLINK_OPEN_RATIO = 0.88;
+/** Eye must drop to this fraction of recent peak EAR to count as closed. */
+export const BLINK_DROP_RATIO = 0.85;
+/** Eye must recover to this fraction of peak after closing. */
+export const BLINK_RECOVER_RATIO = 0.9;
+/** Minimum absolute EAR drop required (guards against noise). */
+export const BLINK_MIN_DROP = 0.015;
 
 export const TURN_YAW_THRESHOLD = 0.1;
 export const TURN_FRAMES_REQUIRED = 8;
@@ -23,7 +27,9 @@ export const HOLD_MIN_CENTERING = 0.4;
 export const FACE_MISS_GRACE_FRAMES = 12;
 
 /** Run face detection about this often (ms). */
-export const DETECTION_INTERVAL_MS = 100;
+export const DETECTION_INTERVAL_MS = 66;
+/** Faster sampling during blink — blinks last ~150–300 ms. */
+export const BLINK_DETECTION_INTERVAL_MS = 40;
 
 export const CHALLENGES: readonly ChallengeConfig[] = [
   {

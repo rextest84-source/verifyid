@@ -55,7 +55,8 @@ export function eyeAspectRatio(eye: Point2D[]): number {
 export function computeEar(landmarks: FaceLandmarks): number {
   const left = eyeAspectRatio(landmarks.getLeftEye());
   const right = eyeAspectRatio(landmarks.getRightEye());
-  return (left + right) / 2;
+  // Use the lower EAR — more sensitive when either eye closes during a blink.
+  return Math.min(left, right);
 }
 
 /**

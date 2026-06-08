@@ -9,7 +9,7 @@ export async function loadFaceModels(): Promise<void> {
 
   await Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromUri(FACE_API_WEIGHTS),
-    faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_API_WEIGHTS),
+    faceapi.nets.faceLandmark68Net.loadFromUri(FACE_API_WEIGHTS),
   ]);
 
   modelsLoaded = true;
@@ -26,7 +26,7 @@ export async function detectFace(
         scoreThreshold: 0.35,
       }),
     )
-    .withFaceLandmarks(true);
+    .withFaceLandmarks(false);
 
   return result ?? null;
 }
