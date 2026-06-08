@@ -22,8 +22,8 @@ export async function detectFace(
     .detectSingleFace(
       video,
       new faceapi.TinyFaceDetectorOptions({
-        inputSize: 320,
-        scoreThreshold: 0.65,
+        inputSize: 224,
+        scoreThreshold: 0.45,
       }),
     )
     .withFaceLandmarks(true);

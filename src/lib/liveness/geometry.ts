@@ -1,4 +1,42 @@
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from "./constants";
 import type { FaceBox, FaceLandmarks, FrameMetrics, Point2D } from "./types";
+
+/** Map a point from camera pixels to canvas coords (object-cover crop + mirror). */
+export function mapVideoToCanvas(
+  x: number,
+  y: number,
+  videoW: number,
+  videoH: number,
+  canvasW = CANVAS_WIDTH,
+  canvasH = CANVAS_HEIGHT,
+): Point2D {
+  const videoAspect = videoW / videoH;
+  const canvasAspect = canvasW / canvasH;
+
+  let sourceX: number;
+  let sourceY: number;
+  let sourceW: number;
+  let sourceH: number;
+
+  if (videoAspect > canvasAspect) {
+    sourceH = videoH;
+    sourceW = videoH * canvasAspect;
+    sourceX = (videoW - sourceW) / 2;
+    sourceY = 0;
+  } else {
+    sourceW = videoW;
+    sourceH = videoW / canvasAspect;
+    sourceX = 0;
+    sourceY = (videoH - sourceH) / 2;
+  }
+
+  const nx = (x - sourceX) / sourceW;
+  const ny = (y - sourceY) / sourceH;
+  return {
+    x: canvasW - nx * canvasW,
+    y: ny * canvasH,
+  };
+}
 
 export function distance(a: Point2D, b: Point2D): number {
   return Math.hypot(a.x - b.x, a.y - b.y);

@@ -1,4 +1,5 @@
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "./constants";
+import { mapVideoToCanvas } from "./geometry";
 import type { RenderState } from "./types";
 
 const OVAL_RX = CANVAS_WIDTH * 0.31;
@@ -11,63 +12,20 @@ function challengeColor(progress: number, complete: boolean): string {
   return "#94a3b8";
 }
 
-function drawMirroredVideo(
-  ctx: CanvasRenderingContext2D,
-  video: HTMLVideoElement,
-  w: number,
-  h: number,
-) {
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  if (!vw || !vh) return;
-
-  const videoAspect = vw / vh;
-  const canvasAspect = w / h;
-  let sx: number;
-  let sy: number;
-  let sWidth: number;
-  let sHeight: number;
-
-  if (videoAspect > canvasAspect) {
-    sHeight = vh;
-    sWidth = vh * canvasAspect;
-    sx = (vw - sWidth) / 2;
-    sy = 0;
-  } else {
-    sWidth = vw;
-    sHeight = vw / canvasAspect;
-    sx = 0;
-    sy = (vh - sHeight) / 2;
-  }
-
-  ctx.save();
-  ctx.translate(w, 0);
-  ctx.scale(-1, 1);
-  ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, w, h);
-  ctx.restore();
-}
-
+/** Darken edges; transparent oval center lets the HTML video layer show through. */
 function drawVignette(ctx: CanvasRenderingContext2D, w: number, h: number) {
   const cx = w / 2;
   const cy = h / 2;
 
   ctx.save();
   ctx.fillStyle = "rgba(2, 6, 23, 0.55)";
-  ctx.fillRect(0, 0, w, h);
-
-  ctx.globalCompositeOperation = "destination-out";
-  const gradient = ctx.createRadialGradient(cx, cy, OVAL_RY * 0.55, cx, cy, OVAL_RY * 1.15);
-  gradient.addColorStop(0, "rgba(0,0,0,1)");
-  gradient.addColorStop(0.7, "rgba(0,0,0,0.35)");
-  gradient.addColorStop(1, "rgba(0,0,0,0)");
-  ctx.fillStyle = gradient;
   ctx.beginPath();
+  ctx.rect(0, 0, w, h);
   ctx.ellipse(cx, cy, OVAL_RX * 1.08, OVAL_RY * 1.08, 0, 0, Math.PI * 2);
-  ctx.fill();
+  ctx.fill("evenodd");
   ctx.restore();
 
   ctx.save();
-  ctx.globalCompositeOperation = "source-over";
   const edge = ctx.createRadialGradient(cx, cy, OVAL_RY * 0.9, cx, cy, OVAL_RY * 1.25);
   edge.addColorStop(0, "rgba(15,23,42,0)");
   edge.addColorStop(1, "rgba(2,6,23,0.75)");
@@ -164,25 +122,31 @@ function drawFaceMesh(
 ) {
   if (!state.face || state.phase !== "running") return;
 
-  const sx = CANVAS_WIDTH / videoW;
-  const sy = CANVAS_HEIGHT / videoH;
   const cx = CANVAS_WIDTH / 2;
 
   ctx.save();
   for (const pt of state.face.landmarks.positions) {
-    const mirroredX = CANVAS_WIDTH - pt.x * sx;
+    const mapped = mapVideoToCanvas(pt.x, pt.y, videoW, videoH);
     ctx.fillStyle = "rgba(56, 189, 248, 0.45)";
     ctx.shadowColor = "#38bdf8";
     ctx.shadowBlur = 4;
     ctx.beginPath();
-    ctx.arc(mirroredX, pt.y * sy, 1.2, 0, Math.PI * 2);
+    ctx.arc(mapped.x, mapped.y, 1.2, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  const scanY =
-    (state.face.detection.box.y + state.face.detection.box.height / 2) * sy;
-  const scanOffset = (state.timestamp * 0.25) % (state.face.detection.box.height * sy);
-  const y = scanY - state.face.detection.box.height * sy * 0.5 + scanOffset;
+  const box = state.face.detection.box;
+  const topLeft = mapVideoToCanvas(box.x, box.y, videoW, videoH);
+  const bottomRight = mapVideoToCanvas(
+    box.x + box.width,
+    box.y + box.height,
+    videoW,
+    videoH,
+  );
+  const boxHeight = Math.abs(bottomRight.y - topLeft.y);
+  const scanY = (topLeft.y + bottomRight.y) / 2;
+  const scanOffset = (state.timestamp * 0.25) % boxHeight;
+  const y = scanY - boxHeight * 0.5 + scanOffset;
 
   const grad = ctx.createLinearGradient(0, y - 24, 0, y + 24);
   grad.addColorStop(0, "rgba(56, 189, 248, 0)");
@@ -209,9 +173,9 @@ function drawStatusBar(ctx: CanvasRenderingContext2D, w: number, h: number, text
   ctx.restore();
 }
 
+/** Draw UI overlays only — the live camera feed is an HTML video element beneath. */
 export function renderLivenessFrame(
   ctx: CanvasRenderingContext2D,
-  video: HTMLVideoElement,
   state: RenderState,
   videoW: number,
   videoH: number,
@@ -220,7 +184,6 @@ export function renderLivenessFrame(
   const h = CANVAS_HEIGHT;
 
   ctx.clearRect(0, 0, w, h);
-  drawMirroredVideo(ctx, video, w, h);
 
   const color = challengeColor(
     state.challenge.progress,
