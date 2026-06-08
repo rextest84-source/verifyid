@@ -9,8 +9,8 @@ type LockPhase = "searching" | "detecting" | "locking" | "locked";
 
 function getLockPhase(progress: number, hasFace: boolean): LockPhase {
   if (!hasFace) return "searching";
-  if (progress >= 0.85) return "locked";
-  if (progress >= 0.35) return "locking";
+  if (progress >= 0.78) return "locked";
+  if (progress >= 0.18) return "locking";
   return "detecting";
 }
 
@@ -89,6 +89,40 @@ function drawGuideOval(
   ctx.restore();
 }
 
+function drawScanLine(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  bw: number,
+  bh: number,
+  timestamp: number,
+  color: string,
+) {
+  const scanOffset = (timestamp * 0.4) % Math.max(bh, 1);
+  const scanY = y + scanOffset;
+
+  ctx.save();
+  ctx.strokeStyle = `${color}66`;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeRect(x, y, bw, bh);
+  ctx.setLineDash([]);
+
+  const grad = ctx.createLinearGradient(0, scanY - 24, 0, scanY + 24);
+  grad.addColorStop(0, "rgba(56, 189, 248, 0)");
+  grad.addColorStop(0.5, "rgba(56, 189, 248, 0.55)");
+  grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, scanY - 24, bw, 48);
+  ctx.restore();
+}
+
+function shouldShowScan(state: RenderState, lockPhase: LockPhase): boolean {
+  if (state.phase !== "running" || lockPhase === "locked") return false;
+  const id = state.challenge.id;
+  return id === "align" || id === "turn_left" || id === "turn_right" || id === "blink";
+}
+
 function drawFaceGuidance(
   ctx: CanvasRenderingContext2D,
   state: RenderState,
@@ -107,6 +141,11 @@ function drawFaceGuidance(
   const bh = Math.abs(br.y - tl.y);
   const faceCx = (tl.x + br.x) / 2;
   const faceCy = (tl.y + br.y) / 2;
+
+  const scanColor = lockPhase === "locking" ? "#38bdf8" : "#7dd3fc";
+  if (shouldShowScan(state, lockPhase)) {
+    drawScanLine(ctx, x, y, bw, bh, state.timestamp, scanColor);
+  }
 
   if (lockPhase === "locking" || lockPhase === "locked") {
     const corner = 14;
@@ -163,7 +202,7 @@ function drawLockBadge(
 ) {
   const labels: Record<LockPhase, string> = {
     searching: "Looking for you...",
-    detecting: "Face found",
+    detecting: "Scanning face...",
     locking: "Locking in...",
     locked: "Locked in",
   };
