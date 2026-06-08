@@ -1,16 +1,11 @@
-const API_BASE = Deno.env.get("RAILWAY_API_URL") ?? Deno.env.get("VITE_API_URL") ?? "";
+const DEFAULT_API_BASE = "https://verifyid-production.up.railway.app";
+
+const API_BASE =
+  Deno.env.get("RAILWAY_API_URL") ??
+  Deno.env.get("VITE_API_URL") ??
+  DEFAULT_API_BASE;
 
 export default async function handler(request: Request): Promise<Response> {
-  if (!API_BASE) {
-    return new Response(
-      JSON.stringify({
-        error: "API not configured",
-        hint: "Set RAILWAY_API_URL in Netlify environment variables to your Railway app URL.",
-      }),
-      { status: 503, headers: { "content-type": "application/json" } },
-    );
-  }
-
   const incoming = new URL(request.url);
   const base = API_BASE.replace(/\/$/, "");
   const target = `${base}${incoming.pathname}${incoming.search}`;

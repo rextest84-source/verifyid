@@ -1,5 +1,8 @@
-# Netlify: set RAILWAY_API_URL = https://YOUR-APP.up.railway.app (no trailing slash)
-# Edge proxy forwards /api/* and /uploads/* to Railway at runtime — no frontend rebuild needed.
+# Edge proxy forwards /api/* and /uploads/* to Railway at runtime.
+# Override with RAILWAY_API_URL in Netlify env if the backend URL changes.
+
+[context.production.environment]
+  RAILWAY_API_URL = "https://verifyid-production.up.railway.app"
 
 [build]
   command = "node scripts/check-netlify-env.mjs && npm run build"
