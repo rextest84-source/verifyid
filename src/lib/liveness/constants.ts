@@ -6,30 +6,28 @@ export const FACE_API_WEIGHTS =
 export const CANVAS_WIDTH = 480;
 export const CANVAS_HEIGHT = 640;
 
-export const ALIGN_MIN_CENTERING = 0.42;
-export const ALIGN_MIN_FACE_SCALE = 0.16;
-export const ALIGN_FRAMES_REQUIRED = 8;
+export const ALIGN_MIN_CENTERING = 0.38;
+export const ALIGN_MIN_FACE_SCALE = 0.14;
+export const ALIGN_FRAMES_REQUIRED = 4;
 
-/** Eye must drop to this fraction of recent peak EAR to count as closed. */
 export const BLINK_DROP_RATIO = 0.85;
-/** Eye must recover to this fraction of peak after closing. */
 export const BLINK_RECOVER_RATIO = 0.9;
-/** Minimum absolute EAR drop required (guards against noise). */
 export const BLINK_MIN_DROP = 0.015;
 
-export const TURN_YAW_THRESHOLD = 0.1;
-export const TURN_FRAMES_REQUIRED = 8;
+export const TURN_YAW_THRESHOLD = 0.08;
+export const TURN_FRAMES_REQUIRED = 4;
 
-export const HOLD_DURATION_MS = 1200;
-export const HOLD_MIN_CENTERING = 0.4;
+export const HOLD_DURATION_MS = 700;
+export const HOLD_MIN_CENTERING = 0.35;
 
-/** Consecutive missed detections before challenge progress decays. */
-export const FACE_MISS_GRACE_FRAMES = 12;
+export const FACE_MISS_GRACE_FRAMES = 18;
 
-/** Run face detection about this often (ms). */
-export const DETECTION_INTERVAL_MS = 66;
-/** Faster sampling during blink — blinks last ~150–300 ms. */
-export const BLINK_DETECTION_INTERVAL_MS = 40;
+/** Target gap between detection runs (ms) — ~30 fps. */
+export const DETECTION_TARGET_MS = 33;
+/** Max rate during blink step (ms) — ~60 fps. */
+export const BLINK_DETECTION_TARGET_MS = 16;
+
+export const SUCCESS_TRANSITION_MS = 700;
 
 export const CHALLENGES: readonly ChallengeConfig[] = [
   {

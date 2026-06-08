@@ -12,25 +12,16 @@ function challengeColor(progress: number, complete: boolean): string {
   return "#94a3b8";
 }
 
-/** Darken edges; transparent oval center lets the HTML video layer show through. */
 function drawVignette(ctx: CanvasRenderingContext2D, w: number, h: number) {
   const cx = w / 2;
   const cy = h / 2;
 
   ctx.save();
-  ctx.fillStyle = "rgba(2, 6, 23, 0.55)";
+  ctx.fillStyle = "rgba(2, 6, 23, 0.5)";
   ctx.beginPath();
   ctx.rect(0, 0, w, h);
   ctx.ellipse(cx, cy, OVAL_RX * 1.08, OVAL_RY * 1.08, 0, 0, Math.PI * 2);
   ctx.fill("evenodd");
-  ctx.restore();
-
-  ctx.save();
-  const edge = ctx.createRadialGradient(cx, cy, OVAL_RY * 0.9, cx, cy, OVAL_RY * 1.25);
-  edge.addColorStop(0, "rgba(15,23,42,0)");
-  edge.addColorStop(1, "rgba(2,6,23,0.75)");
-  ctx.fillStyle = edge;
-  ctx.fillRect(0, 0, w, h);
   ctx.restore();
 }
 
@@ -44,12 +35,12 @@ function drawGuideOval(
 ) {
   const cx = w / 2;
   const cy = h / 2;
-  const pulse = 0.5 + 0.5 * Math.sin(time * 0.004);
+  const pulse = 0.5 + 0.5 * Math.sin(time * 0.008);
 
   ctx.save();
   ctx.shadowColor = color;
-  ctx.shadowBlur = 18 + pulse * 10;
-  ctx.strokeStyle = `${color}88`;
+  ctx.shadowBlur = 14 + pulse * 8;
+  ctx.strokeStyle = `${color}99`;
   ctx.lineWidth = 2.5;
   ctx.beginPath();
   ctx.ellipse(cx, cy, OVAL_RX, OVAL_RY, 0, 0, Math.PI * 2);
@@ -57,64 +48,16 @@ function drawGuideOval(
 
   if (progress > 0) {
     ctx.strokeStyle = color;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3.5;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.ellipse(
-      cx,
-      cy,
-      OVAL_RX + 4,
-      OVAL_RY + 4,
-      -Math.PI / 2,
-      0,
-      progress * Math.PI * 2,
-    );
-    ctx.stroke();
-  }
-
-  ctx.setLineDash([6, 8]);
-  ctx.strokeStyle = `rgba(148, 163, 184, ${0.12 + pulse * 0.08})`;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, OVAL_RX * 0.9, OVAL_RY * 0.9, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawCornerBrackets(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  color: string,
-) {
-  const cx = w / 2;
-  const cy = h / 2;
-  const size = OVAL_RX * 2.15;
-  const len = size * 0.12;
-
-  ctx.save();
-  ctx.strokeStyle = `${color}99`;
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = "round";
-
-  const corners: [number, number, number, number][] = [
-    [cx - size / 2, cy - size / 2, 1, 1],
-    [cx + size / 2, cy - size / 2, -1, 1],
-    [cx - size / 2, cy + size / 2, 1, -1],
-    [cx + size / 2, cy + size / 2, -1, -1],
-  ];
-
-  for (const [x, y, dx, dy] of corners) {
-    ctx.beginPath();
-    ctx.moveTo(x, y + dy * len);
-    ctx.lineTo(x, y);
-    ctx.lineTo(x + dx * len, y);
+    ctx.ellipse(cx, cy, OVAL_RX + 3, OVAL_RY + 3, -Math.PI / 2, 0, progress * Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function drawFaceMesh(
+function drawFaceTracking(
   ctx: CanvasRenderingContext2D,
   state: RenderState,
   videoW: number,
@@ -122,58 +65,121 @@ function drawFaceMesh(
 ) {
   if (!state.face || state.phase !== "running") return;
 
-  const cx = CANVAS_WIDTH / 2;
+  const box = state.face.detection.box;
+  const tl = mapVideoToCanvas(box.x, box.y, videoW, videoH);
+  const br = mapVideoToCanvas(box.x + box.width, box.y + box.height, videoW, videoH);
+  const x = Math.min(tl.x, br.x);
+  const y = Math.min(tl.y, br.y);
+  const bw = Math.abs(br.x - tl.x);
+  const bh = Math.abs(br.y - tl.y);
 
   ctx.save();
-  for (const pt of state.face.landmarks.positions) {
-    const mapped = mapVideoToCanvas(pt.x, pt.y, videoW, videoH);
-    ctx.fillStyle = "rgba(56, 189, 248, 0.45)";
-    ctx.shadowColor = "#38bdf8";
-    ctx.shadowBlur = 4;
-    ctx.beginPath();
-    ctx.arc(mapped.x, mapped.y, 1.2, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  ctx.strokeStyle = "rgba(56, 189, 248, 0.55)";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(x, y, bw, bh);
+  ctx.restore();
 
-  const box = state.face.detection.box;
-  const topLeft = mapVideoToCanvas(box.x, box.y, videoW, videoH);
-  const bottomRight = mapVideoToCanvas(
-    box.x + box.width,
-    box.y + box.height,
-    videoW,
-    videoH,
-  );
-  const boxHeight = Math.abs(bottomRight.y - topLeft.y);
-  const scanY = (topLeft.y + bottomRight.y) / 2;
-  const scanOffset = (state.timestamp * 0.25) % boxHeight;
-  const y = scanY - boxHeight * 0.5 + scanOffset;
+  const cx = CANVAS_WIDTH / 2;
+  const scanSpeed = 0.45;
+  const scanOffset = (state.timestamp * scanSpeed) % bh;
+  const scanY = y + scanOffset;
 
-  const grad = ctx.createLinearGradient(0, y - 24, 0, y + 24);
+  ctx.save();
+  const grad = ctx.createLinearGradient(0, scanY - 20, 0, scanY + 20);
   grad.addColorStop(0, "rgba(56, 189, 248, 0)");
-  grad.addColorStop(0.5, "rgba(56, 189, 248, 0.35)");
+  grad.addColorStop(0.5, "rgba(56, 189, 248, 0.5)");
   grad.addColorStop(1, "rgba(56, 189, 248, 0)");
   ctx.fillStyle = grad;
-  ctx.fillRect(cx - OVAL_RX, y - 24, OVAL_RX * 2, 48);
+  ctx.fillRect(x, scanY - 20, bw, 40);
+  ctx.restore();
+
+  if (state.metrics.hasFace && state.metrics.centering < 0.5) {
+    const faceCx = (tl.x + br.x) / 2;
+    const faceCy = (tl.y + br.y) / 2;
+    const dx = cx - faceCx;
+    const dy = CANVAS_HEIGHT / 2 - faceCy;
+    const len = Math.hypot(dx, dy) || 1;
+    const ax = faceCx + (dx / len) * 28;
+    const ay = faceCy + (dy / len) * 28;
+
+    ctx.save();
+    ctx.fillStyle = "rgba(251, 191, 36, 0.9)";
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax - (dx / len) * 10 - (dy / len) * 5, ay - (dy / len) * 10 + (dx / len) * 5);
+    ctx.lineTo(ax - (dx / len) * 10 + (dy / len) * 5, ay - (dy / len) * 10 - (dx / len) * 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawSensorHud(ctx: CanvasRenderingContext2D, state: RenderState) {
+  const { sensors, challenge } = state;
+  const bars: { label: string; value: number; color: string }[] = [
+    { label: "CTR", value: sensors.centering, color: "#38bdf8" },
+    { label: "SCL", value: sensors.faceScale, color: "#22d3ee" },
+  ];
+
+  if (challenge.id === "blink") {
+    bars.push({ label: "EYE", value: Math.min(1, sensors.ear / 0.35), color: "#a78bfa" });
+  }
+  if (challenge.id === "turn_left" || challenge.id === "turn_right") {
+    bars.push({
+      label: "YAW",
+      value: Math.min(1, Math.abs(sensors.yaw) / 0.25),
+      color: "#f472b6",
+    });
+  }
+
+  const x0 = 10;
+  let y = 52;
+  const barW = 4;
+  const barH = 36;
+
+  ctx.save();
+  ctx.font = "600 8px -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.textAlign = "left";
+
+  for (const bar of bars) {
+    ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+    ctx.fillRect(x0, y, barW, barH);
+    ctx.fillStyle = bar.color;
+    ctx.fillRect(x0, y + barH * (1 - bar.value), barW, barH * bar.value);
+    ctx.fillStyle = "rgba(226, 232, 240, 0.7)";
+    ctx.fillText(bar.label, x0 + 7, y + barH - 4);
+    y += barH + 8;
+  }
+
+  const scanColor = sensors.isScanning ? "#4ade80" : sensors.faceDetected ? "#38bdf8" : "#64748b";
+  ctx.fillStyle = scanColor;
+  ctx.beginPath();
+  ctx.arc(x0 + 2, 36, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(226, 232, 240, 0.8)";
+  ctx.font = "700 9px -apple-system, sans-serif";
+  ctx.fillText(`${sensors.detectionsPerSec}/s`, x0 + 8, 39);
+
   ctx.restore();
 }
 
 function drawStatusBar(ctx: CanvasRenderingContext2D, w: number, h: number, text: string) {
   ctx.save();
-  const barH = 52;
+  const barH = 48;
   const grad = ctx.createLinearGradient(0, h - barH, 0, h);
   grad.addColorStop(0, "rgba(2, 6, 23, 0)");
-  grad.addColorStop(1, "rgba(2, 6, 23, 0.9)");
+  grad.addColorStop(1, "rgba(2, 6, 23, 0.92)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, h - barH, w, barH);
 
-  ctx.font = "600 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  ctx.font = "600 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   ctx.fillStyle = "#e2e8f0";
   ctx.textAlign = "center";
-  ctx.fillText(text, w / 2, h - 20);
+  ctx.fillText(text, w / 2, h - 18);
   ctx.restore();
 }
 
-/** Draw UI overlays only — the live camera feed is an HTML video element beneath. */
 export function renderLivenessFrame(
   ctx: CanvasRenderingContext2D,
   state: RenderState,
@@ -192,8 +198,8 @@ export function renderLivenessFrame(
 
   drawVignette(ctx, w, h);
   drawGuideOval(ctx, w, h, state.challenge.progress, color, state.timestamp);
-  drawCornerBrackets(ctx, w, h, color);
-  drawFaceMesh(ctx, state, videoW, videoH);
+  drawFaceTracking(ctx, state, videoW, videoH);
+  drawSensorHud(ctx, state);
 
   if (state.phase === "running") {
     drawStatusBar(ctx, w, h, state.challenge.feedback);

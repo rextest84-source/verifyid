@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { LivenessChallengeEngine } from "./challengeEngine";
 import {
-  BLINK_DETECTION_INTERVAL_MS,
+  BLINK_DETECTION_TARGET_MS,
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
   CHALLENGES,
-  DETECTION_INTERVAL_MS,
+  DETECTION_TARGET_MS,
+  SUCCESS_TRANSITION_MS,
 } from "./constants";
-import { detectFace, loadFaceModels } from "./faceModels";
+import { detectFace, loadFaceModels, preloadFaceModels } from "./faceModels";
 import { renderLivenessFrame } from "./canvasRenderer";
 import { emptyMetrics } from "./geometry";
-import type { ChallengeSnapshot, FaceDetectionResult, LivenessPhase, RenderState } from "./types";
+import type {
+  ChallengeSnapshot,
+  FaceDetectionResult,
+  LiveSensors,
+  LivenessPhase,
+  RenderState,
+} from "./types";
 
 const INITIAL_CHALLENGE: ChallengeSnapshot = {
   id: CHALLENGES[0].id,
@@ -22,6 +29,17 @@ const INITIAL_CHALLENGE: ChallengeSnapshot = {
   hint: CHALLENGES[0].hint,
   feedback: "Ready when you are",
   isComplete: false,
+};
+
+const INITIAL_SENSORS: LiveSensors = {
+  faceDetected: false,
+  faceScore: 0,
+  centering: 0,
+  faceScale: 0,
+  ear: 1,
+  yaw: 0,
+  isScanning: false,
+  detectionsPerSec: 0,
 };
 
 function waitForNextFrame(): Promise<void> {
@@ -61,6 +79,28 @@ function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
   });
 }
 
+function snapshotUiKey(snapshot: ChallengeSnapshot): string {
+  return `${snapshot.index}:${snapshot.id}:${Math.floor(snapshot.progress * 24)}:${snapshot.feedback}`;
+}
+
+function buildSensors(
+  face: FaceDetectionResult | null,
+  metrics: ReturnType<typeof emptyMetrics>,
+  isScanning: boolean,
+  detectionsPerSec: number,
+): LiveSensors {
+  return {
+    faceDetected: !!face,
+    faceScore: face?.detection.score ?? 0,
+    centering: metrics.centering,
+    faceScale: metrics.faceScale,
+    ear: metrics.ear,
+    yaw: metrics.yaw,
+    isScanning,
+    detectionsPerSec,
+  };
+}
+
 export function useLivenessSession(onComplete: () => void) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -71,13 +111,22 @@ export function useLivenessSession(onComplete: () => void) {
   const faceRef = useRef<FaceDetectionResult | null>(null);
   const challengeRef = useRef(INITIAL_CHALLENGE);
   const metricsRef = useRef(emptyMetrics());
-  const detectingRef = useRef(false);
-  const detectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sensorsRef = useRef<LiveSensors>(INITIAL_SENSORS);
+  const detectInFlightRef = useRef(false);
+  const lastDetectAtRef = useRef(0);
+  const lastUiKeyRef = useRef("");
+  const detectTimestampsRef = useRef<number[]>([]);
+  const lastSensorUiRef = useRef(0);
   onCompleteRef.current = onComplete;
 
   const [phase, setPhase] = useState<LivenessPhase>("idle");
   const [error, setError] = useState("");
   const [challenge, setChallenge] = useState<ChallengeSnapshot>(INITIAL_CHALLENGE);
+  const [sensors, setSensors] = useState<LiveSensors>(INITIAL_SENSORS);
+
+  useEffect(() => {
+    void preloadFaceModels();
+  }, []);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -91,20 +140,29 @@ export function useLivenessSession(onComplete: () => void) {
       video.srcObject = null;
     }
     faceRef.current = null;
-    detectingRef.current = false;
-    if (detectTimerRef.current) {
-      clearTimeout(detectTimerRef.current);
-      detectTimerRef.current = null;
-    }
+    detectInFlightRef.current = false;
+    detectTimestampsRef.current = [];
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  const publishUi = useCallback((snapshot: ChallengeSnapshot, liveSensors: LiveSensors) => {
+    const key = snapshotUiKey(snapshot);
+    if (key !== lastUiKeyRef.current) {
+      lastUiKeyRef.current = key;
+      setChallenge(snapshot);
+    }
+    setSensors(liveSensors);
+  }, []);
 
   const start = useCallback(() => {
     setError("");
     engineRef.current.reset();
     challengeRef.current = INITIAL_CHALLENGE;
+    sensorsRef.current = INITIAL_SENSORS;
+    lastUiKeyRef.current = "";
     setChallenge(INITIAL_CHALLENGE);
+    setSensors(INITIAL_SENSORS);
     setPhase("loading");
   }, []);
 
@@ -117,11 +175,15 @@ export function useLivenessSession(onComplete: () => void) {
       await waitForNextFrame();
 
       try {
+        await loadFaceModels();
+        if (cancelled) return;
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: "user",
-            width: { ideal: 1280, max: 1920 },
-            height: { ideal: 720, max: 1080 },
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 30, max: 30 },
           },
           audio: false,
         });
@@ -142,9 +204,6 @@ export function useLivenessSession(onComplete: () => void) {
         video.srcObject = stream;
 
         await waitForVideoReady(video);
-        if (cancelled) return;
-
-        await loadFaceModels();
         if (cancelled) return;
 
         setPhase("running");
@@ -176,66 +235,91 @@ export function useLivenessSession(onComplete: () => void) {
 
     let running = true;
 
-    const loopDetection = () => {
-      if (!running || !video.videoWidth) return;
+    const runDetection = (now: number) => {
+      if (!running || detectInFlightRef.current || !video.videoWidth) return;
 
-      if (detectingRef.current) {
-        detectTimerRef.current = setTimeout(loopDetection, 20);
-        return;
-      }
+      const targetMs =
+        engineRef.current.currentChallengeId === "blink"
+          ? BLINK_DETECTION_TARGET_MS
+          : DETECTION_TARGET_MS;
 
-      detectingRef.current = true;
+      if (now - lastDetectAtRef.current < targetMs) return;
+
+      lastDetectAtRef.current = now;
+      detectInFlightRef.current = true;
+
       void detectFace(video)
         .then((face) => {
           if (!running) return;
 
+          const ts = performance.now();
+          detectTimestampsRef.current.push(ts);
+          detectTimestampsRef.current = detectTimestampsRef.current.filter((t) => ts - t < 1000);
+
           faceRef.current = face;
-          const timestamp = Date.now();
           const { snapshot, metrics } = engineRef.current.process(
             face,
             video.videoWidth,
             video.videoHeight,
-            timestamp,
+            Date.now(),
           );
 
           challengeRef.current = snapshot;
           metricsRef.current = metrics;
-          setChallenge(snapshot);
+
+          const dps = detectTimestampsRef.current.length;
+          sensorsRef.current = buildSensors(face, metrics, false, dps);
+          publishUi(snapshot, sensorsRef.current);
 
           if (engineRef.current.isComplete) {
             setPhase("success");
             stopCamera();
-            setTimeout(() => onCompleteRef.current(), 1400);
+            setTimeout(() => onCompleteRef.current(), SUCCESS_TRANSITION_MS);
           }
         })
         .finally(() => {
-          detectingRef.current = false;
-          if (!running) return;
-          const delay =
-            challengeRef.current.id === "blink"
-              ? BLINK_DETECTION_INTERVAL_MS
-              : DETECTION_INTERVAL_MS;
-          detectTimerRef.current = setTimeout(loopDetection, delay);
+          detectInFlightRef.current = false;
         });
     };
-
-    loopDetection();
 
     const tick = (timestamp: number) => {
       if (!running) return;
 
       if (!video.paused && !video.ended && video.videoWidth) {
-        const face = faceRef.current;
-        const snapshot = challengeRef.current;
+        runDetection(timestamp);
+
+        const engine = engineRef.current;
+        let snapshot = challengeRef.current;
+
+        if (snapshot.id === "hold") {
+          const smooth = engine.getHoldProgress(timestamp);
+          if (smooth > snapshot.progress) {
+            snapshot = { ...snapshot, progress: smooth };
+          }
+        }
+
+        const liveSensors = {
+          ...sensorsRef.current,
+          isScanning: detectInFlightRef.current,
+          detectionsPerSec: detectTimestampsRef.current.length,
+        };
+        sensorsRef.current = liveSensors;
+
         const renderState: RenderState = {
-          phase: engineRef.current.isComplete ? "success" : "running",
+          phase: engine.isComplete ? "success" : "running",
           challenge: snapshot,
           metrics: metricsRef.current,
           timestamp,
-          face,
+          face: faceRef.current,
+          sensors: liveSensors,
         };
 
         renderLivenessFrame(ctx, renderState, video.videoWidth, video.videoHeight);
+
+        if (timestamp - lastSensorUiRef.current > 120) {
+          lastSensorUiRef.current = timestamp;
+          setSensors(liveSensors);
+        }
       }
 
       animRef.current = requestAnimationFrame(tick);
@@ -245,12 +329,8 @@ export function useLivenessSession(onComplete: () => void) {
     return () => {
       running = false;
       cancelAnimationFrame(animRef.current);
-      if (detectTimerRef.current) {
-        clearTimeout(detectTimerRef.current);
-        detectTimerRef.current = null;
-      }
     };
-  }, [phase, stopCamera]);
+  }, [phase, stopCamera, publishUi]);
 
   return {
     videoRef,
@@ -258,6 +338,7 @@ export function useLivenessSession(onComplete: () => void) {
     phase,
     error,
     challenge,
+    sensors,
     start,
     stopCamera,
     challengeCount: CHALLENGES.length,

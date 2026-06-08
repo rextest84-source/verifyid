@@ -69,4 +69,17 @@ export interface RenderState {
   metrics: FrameMetrics;
   timestamp: number;
   face: FaceDetectionResult | null;
+  sensors: LiveSensors;
+}
+
+/** Real-time sensor readings exposed to UI and canvas HUD. */
+export interface LiveSensors {
+  faceDetected: boolean;
+  faceScore: number;
+  centering: number;
+  faceScale: number;
+  ear: number;
+  yaw: number;
+  isScanning: boolean;
+  detectionsPerSec: number;
 }

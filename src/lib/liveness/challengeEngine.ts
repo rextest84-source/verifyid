@@ -45,6 +45,16 @@ export class LivenessChallengeEngine {
     return this.index >= CHALLENGES.length;
   }
 
+  get currentChallengeId(): ChallengeId {
+    return CHALLENGES[Math.min(this.index, CHALLENGES.length - 1)].id;
+  }
+
+  /** Smooth hold progress between detection frames (call from rAF). */
+  getHoldProgress(now: number): number {
+    if (this.holdStartedAt === null) return 0;
+    return Math.min(1, (now - this.holdStartedAt) / HOLD_DURATION_MS);
+  }
+
   process(
     face: FaceDetectionResult | null,
     videoW: number,
