@@ -27,7 +27,7 @@ export default function Start() {
         msg.includes("network")
       ) {
         setError(
-          "Could not reach the verification server. Make sure the API is deployed and connected to this site.",
+          "Could not reach the verification server. Ensure Railway is running and Netlify has RAILWAY_API_URL set to your Railway URL.",
         );
         return;
       }
