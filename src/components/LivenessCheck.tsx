@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 interface LivenessCheckProps {
-  onComplete: () => void;
+  onComplete: (snapshotUrl?: string) => void;
 }
 
 const CHALLENGE_ICONS = [ScanFace, Eye, MoveHorizontal, MoveHorizontal, Shield] as const;

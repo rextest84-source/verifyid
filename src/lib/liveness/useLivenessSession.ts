@@ -11,6 +11,7 @@ import {
 import { detectFace, loadFaceModels, preloadFaceModels } from "./faceModels";
 import { renderLivenessFrame } from "./canvasRenderer";
 import { emptyMetrics } from "./geometry";
+import { captureVideoFrame, uploadImageFile } from "@/lib/upload";
 import type {
   ChallengeSnapshot,
   FaceDetectionResult,
@@ -101,7 +102,7 @@ function buildSensors(
   };
 }
 
-export function useLivenessSession(onComplete: () => void) {
+export function useLivenessSession(onComplete: (snapshotUrl?: string) => void) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -143,6 +144,25 @@ export function useLivenessSession(onComplete: () => void) {
     detectInFlightRef.current = false;
     detectTimestampsRef.current = [];
   }, []);
+
+  const finishSession = useCallback(
+    async (video: HTMLVideoElement) => {
+      let snapshotUrl: string | undefined;
+      try {
+        const frame = await captureVideoFrame(video);
+        if (frame) {
+          const url = await uploadImageFile(frame, "liveness-selfie.jpg");
+          if (url) snapshotUrl = url;
+        }
+      } catch {
+        // Submission can proceed without the snapshot if upload fails.
+      }
+
+      stopCamera();
+      setTimeout(() => onCompleteRef.current(snapshotUrl), SUCCESS_TRANSITION_MS);
+    },
+    [stopCamera],
+  );
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
@@ -273,8 +293,7 @@ export function useLivenessSession(onComplete: () => void) {
 
           if (engineRef.current.isComplete) {
             setPhase("success");
-            stopCamera();
-            setTimeout(() => onCompleteRef.current(), SUCCESS_TRANSITION_MS);
+            void finishSession(video);
           }
         })
         .finally(() => {
@@ -330,7 +349,7 @@ export function useLivenessSession(onComplete: () => void) {
       running = false;
       cancelAnimationFrame(animRef.current);
     };
-  }, [phase, stopCamera, publishUi]);
+  }, [phase, stopCamera, publishUi, finishSession]);
 
   return {
     videoRef,
