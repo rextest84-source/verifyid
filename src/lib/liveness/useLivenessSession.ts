@@ -4,7 +4,7 @@ import { CANVAS_HEIGHT, CANVAS_WIDTH, CHALLENGES } from "./constants";
 import { detectFace, loadFaceModels } from "./faceModels";
 import { renderLivenessFrame } from "./canvasRenderer";
 import { emptyMetrics } from "./geometry";
-import type { ChallengeSnapshot, LivenessPhase, RenderState } from "./types";
+import type { ChallengeSnapshot, FaceDetectionResult, LivenessPhase, RenderState } from "./types";
 
 const INITIAL_CHALLENGE: ChallengeSnapshot = {
   id: CHALLENGES[0].id,
@@ -24,7 +24,6 @@ function waitForNextFrame(): Promise<void> {
   });
 }
 
-/** iOS Safari needs loadedmetadata + playing before canvas drawImage works. */
 function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
   return new Promise((resolve, reject) => {
     const finish = () => {
@@ -63,6 +62,10 @@ export function useLivenessSession(onComplete: () => void) {
   const animRef = useRef(0);
   const engineRef = useRef(new LivenessChallengeEngine());
   const onCompleteRef = useRef(onComplete);
+  const faceRef = useRef<FaceDetectionResult | null>(null);
+  const challengeRef = useRef(INITIAL_CHALLENGE);
+  const metricsRef = useRef(emptyMetrics());
+  const detectingRef = useRef(false);
   onCompleteRef.current = onComplete;
 
   const [phase, setPhase] = useState<LivenessPhase>("idle");
@@ -80,6 +83,8 @@ export function useLivenessSession(onComplete: () => void) {
       video.pause();
       video.srcObject = null;
     }
+    faceRef.current = null;
+    detectingRef.current = false;
   }, []);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
@@ -87,6 +92,7 @@ export function useLivenessSession(onComplete: () => void) {
   const start = useCallback(() => {
     setError("");
     engineRef.current.reset();
+    challengeRef.current = INITIAL_CHALLENGE;
     setChallenge(INITIAL_CHALLENGE);
     setPhase("loading");
   }, []);
@@ -151,7 +157,7 @@ export function useLivenessSession(onComplete: () => void) {
     const canvas = canvasRef.current;
     if (!video || !canvas || phase !== "running") return;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = canvas.getContext("2d", { alpha: true });
     if (!ctx) return;
 
     canvas.width = CANVAS_WIDTH;
@@ -159,40 +165,55 @@ export function useLivenessSession(onComplete: () => void) {
 
     let running = true;
 
-    const tick = async () => {
+    const runDetection = () => {
+      if (!running || detectingRef.current || !video.videoWidth) return;
+
+      detectingRef.current = true;
+      void detectFace(video)
+        .then((face) => {
+          if (!running) return;
+
+          faceRef.current = face;
+          const timestamp = Date.now();
+          const { snapshot, metrics } = engineRef.current.process(
+            face,
+            video.videoWidth,
+            video.videoHeight,
+            timestamp,
+          );
+
+          challengeRef.current = snapshot;
+          metricsRef.current = metrics;
+          setChallenge(snapshot);
+
+          if (engineRef.current.isComplete) {
+            setPhase("success");
+            stopCamera();
+            setTimeout(() => onCompleteRef.current(), 1400);
+          }
+        })
+        .finally(() => {
+          detectingRef.current = false;
+        });
+    };
+
+    const tick = (timestamp: number) => {
       if (!running) return;
 
-      if (video.paused || video.ended || !video.videoWidth) {
-        animRef.current = requestAnimationFrame(tick);
-        return;
-      }
+      if (!video.paused && !video.ended && video.videoWidth) {
+        if (!detectingRef.current) runDetection();
 
-      const timestamp = Date.now();
-      const face = await detectFace(video);
-      const { snapshot, metrics } = engineRef.current.process(
-        face,
-        video.videoWidth,
-        video.videoHeight,
-        timestamp,
-      );
+        const face = faceRef.current;
+        const snapshot = challengeRef.current;
+        const renderState: RenderState = {
+          phase: engineRef.current.isComplete ? "success" : "running",
+          challenge: snapshot,
+          metrics: metricsRef.current,
+          timestamp,
+          face,
+        };
 
-      setChallenge(snapshot);
-
-      const renderState: RenderState = {
-        phase: engineRef.current.isComplete ? "success" : "running",
-        challenge: snapshot,
-        metrics: metrics.hasFace ? metrics : emptyMetrics(),
-        timestamp,
-        face,
-      };
-
-      renderLivenessFrame(ctx, video, renderState, video.videoWidth, video.videoHeight);
-
-      if (engineRef.current.isComplete) {
-        setPhase("success");
-        stopCamera();
-        setTimeout(() => onCompleteRef.current(), 1400);
-        return;
+        renderLivenessFrame(ctx, renderState, video.videoWidth, video.videoHeight);
       }
 
       animRef.current = requestAnimationFrame(tick);

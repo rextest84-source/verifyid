@@ -140,19 +140,13 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
       {/* Viewfinder — mount only when active so iOS gets a sized video element */}
       {phase !== "idle" && (
-      <div className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-slate-700/80 shadow-2xl shadow-sky-500/10">
+      <div
+        className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-slate-700/80 shadow-2xl shadow-sky-500/10 bg-slate-950"
+        style={{ aspectRatio: `${CANVAS_WIDTH}/${CANVAS_HEIGHT}` }}
+      >
         <video
           ref={videoRef}
-          className="pointer-events-none"
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: CANVAS_WIDTH,
-            height: CANVAS_HEIGHT,
-            opacity: 0.01,
-            zIndex: -1,
-          }}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none -scale-x-100"
           muted
           playsInline
           autoPlay
@@ -161,8 +155,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
           ref={canvasRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
-          className="w-full block bg-slate-950"
-          style={{ aspectRatio: `${CANVAS_WIDTH}/${CANVAS_HEIGHT}` }}
+          className="absolute inset-0 w-full h-full pointer-events-none"
         />
 
         {phase === "loading" && (
