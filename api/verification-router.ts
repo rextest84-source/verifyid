@@ -43,6 +43,28 @@ export const verificationRouter = createRouter({
       return { success: true };
     }),
 
+  resetLiveness: publicQuery
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db
+        .update(verifications)
+        .set({ livenessVerified: null, livenessImageUrl: null })
+        .where(eq(verifications.id, input.id));
+      return { success: true };
+    }),
+
+  resetIdDocument: publicQuery
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      await db
+        .update(verifications)
+        .set({ idVerified: null, idImageUrl: null })
+        .where(eq(verifications.id, input.id));
+      return { success: true };
+    }),
+
   updateIdDocument: publicQuery
     .input(z.object({ id: z.number(), imageUrl: z.string() }))
     .mutation(async ({ input }) => {
