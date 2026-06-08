@@ -7,8 +7,8 @@ import { appRouter } from "./router";
 import { createContext } from "./context";
 import { createOAuthCallbackHandler } from "./kimi/auth";
 import { Paths } from "@contracts/constants";
-import { writeFile } from "fs/promises";
-import { mkdir } from "fs/promises";
+import { readFileSync } from "fs";
+import { writeFile, mkdir } from "fs/promises";
 import { serveStatic } from "@hono/node-server/serve-static";
 import path from "path";
 import { ensureDatabaseSchema } from "./ensure-db";
@@ -71,7 +71,7 @@ app.notFound((c) => {
   const accept = c.req.header("accept") ?? "";
   if (!accept.includes("text/html")) return c.json({ error: "Not Found" }, 404);
   try {
-    const content = require("fs").readFileSync(path.resolve(distPath, "index.html"), "utf-8");
+    const content = readFileSync(path.resolve(distPath, "index.html"), "utf-8");
     return c.html(content);
   } catch {
     return c.json({ error: "Frontend not built" }, 500);
