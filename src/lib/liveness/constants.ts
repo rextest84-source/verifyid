@@ -64,14 +64,14 @@ export const CHALLENGES: readonly ChallengeConfig[] = [
   {
     id: "turn_left",
     title: "Turn Left",
-    instruction: "Turn toward the left arrow",
-    hint: "Follow the arrow on screen — a small turn is enough",
+    instruction: "Turn your head to your left",
+    hint: "Turn toward your left shoulder — a small movement is enough",
   },
   {
     id: "turn_right",
     title: "Turn Right",
-    instruction: "Turn toward the right arrow",
-    hint: "Follow the arrow on screen — keep shoulders relaxed",
+    instruction: "Turn your head to your right",
+    hint: "Turn toward your right shoulder — keep it gentle",
   },
   {
     id: "hold",

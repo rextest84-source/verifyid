@@ -16,7 +16,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         to={path}
         className={`px-3.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
           active
-            ? "text-sky-300 bg-sky-500/15 border border-sky-500/25 shadow-sm shadow-sky-500/10"
+            ? "text-violet-300 bg-violet-500/15 border border-violet-500/25 shadow-sm shadow-violet-500/10"
             : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60 border border-transparent"
         }`}
         onClick={() => setMenuOpen(false)}
@@ -28,18 +28,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen ambient-bg text-slate-50 flex flex-col">
-      <div className="mesh-orb w-72 h-72 bg-sky-500/10 -top-24 -right-24 fixed" />
-      <div className="mesh-orb w-96 h-96 bg-cyan-500/8 top-1/2 -left-48 fixed" />
+      <div className="mesh-orb w-72 h-72 bg-violet-500/10 -top-24 -right-24 fixed" />
+      <div className="mesh-orb w-96 h-96 bg-fuchsia-500/8 top-1/2 -left-48 fixed" />
 
       <header className="border-b border-slate-800/50 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500/20 to-cyan-500/10 flex items-center justify-center border border-sky-500/20 group-hover:border-sky-500/40 transition-colors">
-              <Shield className="w-5 h-5 text-sky-400" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 flex items-center justify-center border border-violet-500/20 group-hover:border-violet-500/40 transition-colors">
+              <Shield className="w-5 h-5 text-violet-400" />
             </div>
             <div className="flex flex-col leading-none">
               <span className="font-bold text-lg tracking-tight text-slate-100">
-                Verify<span className="text-sky-400">ID</span>
+                Verify<span className="text-violet-400">ID</span>
               </span>
               <span className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">
                 Secure verification

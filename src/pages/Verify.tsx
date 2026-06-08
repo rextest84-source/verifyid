@@ -105,8 +105,8 @@ export default function Verify() {
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-sky-500/15 flex items-center justify-center border border-sky-500/25">
-            <Shield className="w-5 h-5 text-sky-400" />
+          <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center border border-violet-500/25">
+            <Shield className="w-5 h-5 text-violet-400" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-100">Identity Verification</h1>
@@ -121,7 +121,7 @@ export default function Verify() {
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all duration-300 ${
                     step >= s.num
-                      ? "border-sky-500 bg-sky-500/15 text-sky-300 shadow-sm shadow-sky-500/20"
+                      ? "border-violet-500 bg-violet-500/15 text-violet-300 shadow-sm shadow-violet-500/20"
                       : "border-slate-700 bg-slate-900/80 text-slate-500"
                   }`}
                 >
@@ -134,7 +134,7 @@ export default function Verify() {
               {idx < steps.length - 1 && (
                 <div
                   className={`flex-1 h-0.5 rounded-full transition-colors duration-500 ${
-                    step > s.num ? "bg-gradient-to-r from-sky-500 to-cyan-500" : "bg-slate-800"
+                    step > s.num ? "bg-gradient-to-r from-violet-500 to-fuchsia-500" : "bg-slate-800"
                   }`}
                 />
               )}
@@ -144,7 +144,7 @@ export default function Verify() {
 
         <div className="h-1.5 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50">
           <div
-            className="h-full bg-gradient-to-r from-sky-500 to-cyan-400 transition-all duration-500 ease-out"
+            className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-all duration-500 ease-out"
             style={{ width: `${((step - 1) / 3) * 100}%` }}
           />
         </div>
@@ -154,13 +154,13 @@ export default function Verify() {
         {step === 1 && (
           <div className="space-y-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-sky-400">Step 1:</span>
+              <span className="text-sm font-medium text-violet-400">Step 1:</span>
               <span className="text-sm font-semibold text-slate-100">Liveness Check</span>
             </div>
             <Suspense
               fallback={
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-400">
-                  <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
+                  <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
                   <p className="text-sm">Loading liveness module...</p>
                 </div>
               }
@@ -186,7 +186,7 @@ export default function Verify() {
         {step === 2 && (
           <div className="space-y-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-sky-400">Step 2:</span>
+              <span className="text-sm font-medium text-violet-400">Step 2:</span>
               <span className="text-sm font-semibold text-slate-100">ID Document</span>
             </div>
             <IdUpload
@@ -218,7 +218,7 @@ export default function Verify() {
         {step === 3 && (
           <div className="space-y-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-sky-400">Step 3:</span>
+              <span className="text-sm font-medium text-violet-400">Step 3:</span>
               <span className="text-sm font-semibold text-slate-100">Review & Submit</span>
             </div>
             <SubmitReview
@@ -259,7 +259,7 @@ export default function Verify() {
                 Your verification has been submitted. You will receive a confirmation email once your ID is verified.
               </p>
             </div>
-            <Button className="bg-sky-500 hover:bg-sky-600 text-white" onClick={() => navigate("/dashboard")}>
+            <Button className="bg-violet-500 hover:bg-violet-600 text-white" onClick={() => navigate("/dashboard")}>
               Go to Dashboard
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

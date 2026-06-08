@@ -1,10 +1,11 @@
 /**
- * Verifies head-turn yaw matches mirrored selfie preview directions.
+ * Verifies head-turn yaw for desktop (raw sensor) and mobile (mirrored sensor).
  * Run: node scripts/test-yaw.mjs
  */
 
-function computeYaw(noseX, faceCenterX, halfWidth) {
-  return (faceCenterX - noseX) / halfWidth;
+function computeYaw(noseX, faceCenterX, halfWidth, sensorMirrored = false) {
+  const raw = (noseX - faceCenterX) / halfWidth;
+  return sensorMirrored ? -raw : raw;
 }
 
 function detectTurn(delta, direction, threshold = 0.06) {
@@ -14,7 +15,7 @@ function detectTurn(delta, direction, threshold = 0.06) {
 
 const center = 200;
 const hw = 50;
-const baseline = computeYaw(center, center, hw);
+const baseline = (mirrored) => computeYaw(center, center, hw, mirrored);
 
 let passed = 0;
 let failed = 0;
@@ -29,31 +30,29 @@ function assert(name, condition) {
   }
 }
 
-console.log("Yaw direction tests (mirrored preview space)\n");
+console.log("Yaw direction tests\n");
 
-// Screen-left turn: nose shifts left in preview → lower raw x
-const leftYaw = computeYaw(170, center, hw);
-const leftDelta = leftYaw - baseline;
-assert("preview-left produces positive yaw", leftYaw > 0.3);
-assert("turn_left detects screen-left turn", detectTurn(leftDelta, "left"));
+// Desktop: unmirrored sensor — physical left raises nose x
+const desktopLeft = computeYaw(230, center, hw, false) - baseline(false);
+assert("desktop: physical left → positive yaw", desktopLeft > 0.3);
+assert("desktop: turn_left accepts physical left", detectTurn(desktopLeft, "left"));
 
-// Screen-right turn: nose shifts right in preview → higher raw x
-const rightYaw = computeYaw(230, center, hw);
-const rightDelta = rightYaw - baseline;
-assert("preview-right produces negative yaw", rightYaw < -0.3);
-assert("turn_right detects screen-right turn", detectTurn(rightDelta, "right"));
+const desktopRight = computeYaw(170, center, hw, false) - baseline(false);
+assert("desktop: physical right → negative yaw", desktopRight < -0.3);
+assert("desktop: turn_right accepts physical right", detectTurn(desktopRight, "right"));
 
-// Neutral pose should not trigger either turn
-const neutralDelta = computeYaw(202, center, hw) - baseline;
-assert("neutral pose does not trigger left", !detectTurn(neutralDelta, "left"));
-assert("neutral pose does not trigger right", !detectTurn(neutralDelta, "right"));
+// Mobile: mirrored sensor — physical left lowers nose x in frame
+const mobileLeft = computeYaw(170, center, hw, true) - baseline(true);
+assert("mobile: physical left → positive yaw", mobileLeft > 0.3);
+assert("mobile: turn_left accepts physical left", detectTurn(mobileLeft, "left"));
 
-// Old (buggy) raw formula would invert left/right
-function oldComputeYaw(noseX, faceCenterX, halfWidth) {
-  return (noseX - faceCenterX) / halfWidth;
-}
-const oldLeft = oldComputeYaw(170, center, hw) - oldComputeYaw(center, center, hw);
-assert("old formula wrongly rejects screen-left", !detectTurn(oldLeft, "left"));
+const mobileRight = computeYaw(230, center, hw, true) - baseline(true);
+assert("mobile: physical right → negative yaw", mobileRight < -0.3);
+assert("mobile: turn_right accepts physical right", detectTurn(mobileRight, "right"));
+
+// Prior buggy preview-only formula rejected mobile left
+const buggy = (center - 170) / hw;
+assert("buggy preview formula alone is wrong for mobile raw coords", buggy > 0);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

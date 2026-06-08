@@ -15,14 +15,14 @@ function getLockPhase(progress: number, hasFace: boolean): LockPhase {
 }
 
 function lockColor(phase: LockPhase, complete: boolean): string {
-  if (complete) return "#4ade80";
+  if (complete) return "#34d399";
   switch (phase) {
     case "locked":
-      return "#4ade80";
+      return "#34d399";
     case "locking":
-      return "#38bdf8";
+      return "#a78bfa";
     case "detecting":
-      return "#7dd3fc";
+      return "#c4b5fd";
     default:
       return "#94a3b8";
   }
@@ -99,9 +99,9 @@ function drawScanLine(
 
   ctx.save();
   const grad = ctx.createLinearGradient(0, scanY - 18, 0, scanY + 18);
-  grad.addColorStop(0, "rgba(56, 189, 248, 0)");
-  grad.addColorStop(0.5, "rgba(56, 189, 248, 0.4)");
-  grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+  grad.addColorStop(0, "rgba(167, 139, 250, 0)");
+  grad.addColorStop(0.5, "rgba(167, 139, 250, 0.45)");
+  grad.addColorStop(1, "rgba(167, 139, 250, 0)");
   ctx.fillStyle = grad;
   ctx.fillRect(cx - rx, scanY - 18, rx * 2, 36);
   ctx.restore();
@@ -119,12 +119,21 @@ function drawFaceGuidance(
   videoW: number,
   videoH: number,
   lockPhase: LockPhase,
+  mirrorPreview: boolean,
 ) {
   if (!state.face || state.phase !== "running") return;
 
   const box = state.face.detection.box;
-  const tl = mapVideoToCanvas(box.x, box.y, videoW, videoH);
-  const br = mapVideoToCanvas(box.x + box.width, box.y + box.height, videoW, videoH);
+  const tl = mapVideoToCanvas(box.x, box.y, videoW, videoH, CANVAS_WIDTH, CANVAS_HEIGHT, mirrorPreview);
+  const br = mapVideoToCanvas(
+    box.x + box.width,
+    box.y + box.height,
+    videoW,
+    videoH,
+    CANVAS_WIDTH,
+    CANVAS_HEIGHT,
+    mirrorPreview,
+  );
   const x = Math.min(tl.x, br.x);
   const y = Math.min(tl.y, br.y);
   const bw = Math.abs(br.x - tl.x);
@@ -141,7 +150,7 @@ function drawFaceGuidance(
     const inset = 4;
     ctx.save();
     ctx.strokeStyle =
-      lockPhase === "locked" ? "rgba(74, 222, 128, 0.75)" : "rgba(56, 189, 248, 0.55)";
+      lockPhase === "locked" ? "rgba(52, 211, 153, 0.75)" : "rgba(167, 139, 250, 0.55)";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
 
@@ -172,7 +181,7 @@ function drawFaceGuidance(
     const ay = faceCy + (dy / len) * 24;
 
     ctx.save();
-    ctx.fillStyle = "rgba(125, 211, 252, 0.85)";
+    ctx.fillStyle = "rgba(196, 181, 253, 0.9)";
     ctx.beginPath();
     ctx.moveTo(ax, ay);
     ctx.lineTo(ax - (dx / len) * 8 - (dy / len) * 4, ay - (dy / len) * 8 + (dx / len) * 4);
@@ -245,15 +254,15 @@ function drawTurnArrow(
   ctx.globalAlpha = alpha * pulse;
 
   const grad = ctx.createRadialGradient(ax, ay, 0, ax, ay, 36);
-  grad.addColorStop(0, "rgba(56, 189, 248, 0.35)");
-  grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+  grad.addColorStop(0, "rgba(167, 139, 250, 0.4)");
+  grad.addColorStop(1, "rgba(167, 139, 250, 0)");
   ctx.fillStyle = grad;
   ctx.beginPath();
   ctx.arc(ax, ay, 36, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = progress >= 0.7 ? "#4ade80" : "#38bdf8";
-  ctx.fillStyle = progress >= 0.7 ? "#4ade80" : "#7dd3fc";
+  ctx.strokeStyle = progress >= 0.7 ? "#34d399" : "#a78bfa";
+  ctx.fillStyle = progress >= 0.7 ? "#34d399" : "#c4b5fd";
   ctx.lineWidth = 3;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -303,6 +312,7 @@ export function renderLivenessFrame(
   state: RenderState,
   videoW: number,
   videoH: number,
+  mirrorPreview = true,
 ): void {
   const w = CANVAS_WIDTH;
   const h = CANVAS_HEIGHT;
@@ -314,7 +324,7 @@ export function renderLivenessFrame(
 
   drawVignette(ctx, w, h);
   drawGuideOval(ctx, w, h, state.challenge.progress, lockPhase, color);
-  drawFaceGuidance(ctx, state, videoW, videoH, lockPhase);
+  drawFaceGuidance(ctx, state, videoW, videoH, lockPhase, mirrorPreview);
 
   if (state.phase === "running") {
     const cx = w / 2;

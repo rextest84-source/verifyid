@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/liveness/constants";
+import { shouldMirrorSelfiePreview } from "@/lib/liveness/previewMirror";
 import { useLivenessSession } from "@/lib/liveness/useLivenessSession";
 import {
   AlertCircle,
@@ -23,6 +24,7 @@ const CHALLENGE_LABELS = ["Align", "Blink", "Left", "Right", "Hold"];
 export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
   const { videoRef, canvasRef, phase, error, challenge, start, challengeCount } =
     useLivenessSession(onComplete);
+  const mirrorPreview = shouldMirrorSelfiePreview();
 
   const isActive = phase === "loading" || phase === "running" || phase === "success";
   const overallProgress =
@@ -42,7 +44,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
   return (
     <div className="space-y-5">
       <div className="text-center space-y-3 min-h-[5.5rem]">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-300 text-xs font-semibold shadow-sm shadow-sky-500/10">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-300 text-xs font-semibold shadow-sm shadow-violet-500/10">
           <Sparkles className="w-3.5 h-3.5" />
           Guided liveness check
         </div>
@@ -73,7 +75,7 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
                   done
                     ? "bg-emerald-500/10 border-emerald-500/35 text-emerald-400"
                     : active
-                      ? "bg-sky-500/15 border-sky-500/40 text-sky-300 shadow-sm shadow-sky-500/10"
+                      ? "bg-violet-500/15 border-violet-500/40 text-violet-300 shadow-sm shadow-violet-500/10"
                       : "bg-slate-800/40 border-slate-700/50 text-slate-500"
                 }`}
               >
@@ -93,11 +95,11 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
         <div className="space-y-2 max-w-sm mx-auto">
           <div className="flex justify-between text-[11px] text-slate-500 font-semibold tracking-wide uppercase">
             <span>{phase === "success" ? "Complete" : `Step ${challenge.index + 1} of ${challengeCount}`}</span>
-            <span className="text-sky-400">{overallProgress}%</span>
+            <span className="text-violet-400">{overallProgress}%</span>
           </div>
           <div className="h-2 bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/50">
             <div
-              className="h-full bg-gradient-to-r from-sky-500 via-cyan-400 to-emerald-400 rounded-full transition-all duration-500 ease-out"
+              className="h-full bg-gradient-to-r from-violet-500 via-fuchsia-400 to-amber-400 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${overallProgress}%` }}
             />
           </div>
@@ -128,12 +130,12 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
       {phase !== "idle" && (
         <div
-          className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-sky-500/20 shadow-2xl shadow-sky-500/15 bg-slate-950 isolate [contain:layout_paint] ring-1 ring-sky-500/10"
+          className="relative rounded-2xl overflow-hidden border mx-auto max-w-sm border-violet-500/25 shadow-2xl shadow-violet-500/15 bg-slate-950 isolate [contain:layout_paint] ring-1 ring-violet-500/15"
           style={{ aspectRatio: `${CANVAS_WIDTH}/${CANVAS_HEIGHT}` }}
         >
           <video
             ref={videoRef}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none -scale-x-100 [transform:translateZ(0)] [backface-visibility:hidden]"
+            className={`absolute inset-0 w-full h-full object-cover pointer-events-none [transform:translateZ(0)] [backface-visibility:hidden] ${mirrorPreview ? "-scale-x-100" : ""}`}
             muted
             playsInline
             autoPlay
@@ -147,15 +149,15 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
 
           {phase === "loading" && (
             <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-9 h-9 text-sky-400 animate-spin" />
+              <Loader2 className="w-9 h-9 text-violet-400 animate-spin" />
               <p className="text-sm text-slate-400 font-medium">Opening camera...</p>
             </div>
           )}
 
           {phase === "running" && (
             <div className="absolute top-3 right-3 pointer-events-none">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur border border-sky-500/30 text-[11px] font-semibold text-sky-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur border border-violet-500/30 text-[11px] font-semibold text-violet-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
                 Live
               </span>
             </div>

@@ -70,12 +70,16 @@ export class LivenessChallengeEngine {
     videoW: number,
     videoH: number,
     timestamp: number,
+    sensorMirrored = false,
   ): { snapshot: ChallengeSnapshot; metrics: FrameMetrics } {
     if (this.isComplete) {
       return {
         snapshot: this.buildSnapshot(1, "All done — nice work!", true),
         metrics: face
-          ? { hasFace: true, ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH) }
+          ? {
+              hasFace: true,
+              ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH, sensorMirrored),
+            }
           : emptyMetrics(),
       };
     }
@@ -101,7 +105,10 @@ export class LivenessChallengeEngine {
     }
 
     this.missedFaceFrames = 0;
-    const metrics = { hasFace: true, ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH) };
+    const metrics = {
+      hasFace: true,
+      ...extractMetrics(face.landmarks, face.detection.box, videoW, videoH, sensorMirrored),
+    };
 
     switch (config.id) {
       case "align":

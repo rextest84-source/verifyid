@@ -49,8 +49,8 @@ export default function Start() {
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 to-cyan-500/10 flex items-center justify-center mx-auto mb-5 border border-sky-500/25 shadow-lg shadow-sky-500/10">
-            <Shield className="w-8 h-8 text-sky-400" />
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 flex items-center justify-center mx-auto mb-5 border border-violet-500/25 shadow-lg shadow-violet-500/10">
+            <Shield className="w-8 h-8 text-violet-400" />
           </div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2">
             Start verification
@@ -68,7 +68,7 @@ export default function Start() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="John Doe"
-              className="bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-sky-500"
+              className="bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-violet-500"
             />
           </div>
           <div className="space-y-2">
@@ -81,7 +81,7 @@ export default function Start() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="john@example.com"
-              className="bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-sky-500"
+              className="bg-slate-900 border-slate-700 text-slate-100 placeholder:text-slate-600 focus-visible:ring-violet-500"
             />
           </div>
 
