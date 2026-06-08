@@ -1,12 +1,15 @@
 import { Shield, Menu, X, Sparkles, Mail } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { useState } from "react";
+import { trpc } from "@/providers/trpc";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { data: adminStatus } = trpc.admin.status.useQuery();
 
   const isActive = (path: string) => location.pathname === path;
+  const isAdmin = adminStatus?.isAdmin ?? false;
 
   const navLink = (path: string, label: string, alsoActive?: string[]) => {
     const active =
@@ -53,7 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navLink("/", "Home")}
             {navLink("/dashboard", "Dashboard")}
             {navLink("/start", "Verify", ["/verify"])}
-            {navLink("/compose", "Send Mail")}
+            {isAdmin && navLink("/compose", "Send Mail")}
           </nav>
 
           <Link
@@ -78,7 +81,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {navLink("/", "Home")}
             {navLink("/dashboard", "Dashboard")}
             {navLink("/start", "Verify", ["/verify"])}
-            {navLink("/compose", "Send Mail")}
+            {isAdmin && navLink("/compose", "Send Mail")}
             <Link
               to="/start"
               className="block mt-3 text-center px-4 py-2.5 rounded-xl btn-glow text-sm font-semibold"
@@ -99,13 +102,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <p className="text-[10px] text-slate-600 mt-1 px-4">
           Biometric liveness · ID scanning · Email confirmation
         </p>
-        <Link
-          to="/compose"
-          className="inline-flex items-center gap-1.5 mt-3 text-xs text-violet-400 hover:text-violet-300"
-        >
-          <Mail className="w-3.5 h-3.5" />
-          Compose & send email
-        </Link>
+        {isAdmin && (
+          <Link
+            to="/compose"
+            className="inline-flex items-center gap-1.5 mt-3 text-xs text-violet-400 hover:text-violet-300"
+          >
+            <Mail className="w-3.5 h-3.5" />
+            Compose & send email
+          </Link>
+        )}
       </footer>
     </div>
   );
