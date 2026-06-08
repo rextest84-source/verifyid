@@ -15,7 +15,9 @@ export function ensureDatabaseSchema(): void {
     });
     console.log("[db] Schema ready.");
   } catch (error) {
-    console.error("[db] Schema push failed:", error);
-    throw error;
+    console.error(
+      "[db] Schema push failed — server will start, but API may fail until DATABASE_URL is valid:",
+      error,
+    );
   }
 }
