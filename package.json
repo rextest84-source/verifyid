@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
+    "build:netlify": "node scripts/check-netlify-env.mjs && vite build",
+    "db:push": "drizzle-kit push",
     "start": "npx tsx api/boot.ts"
   },
   "dependencies": {
