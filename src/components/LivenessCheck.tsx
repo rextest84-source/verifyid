@@ -5,6 +5,7 @@ import {
   AlertCircle,
   Camera,
   CheckCircle2,
+  Eye,
   Loader2,
   MoveHorizontal,
   ScanFace,
