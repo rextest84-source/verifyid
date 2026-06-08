@@ -34,6 +34,7 @@ export const verifications = mysqlTable("verifications", {
   livenessVerified: timestamp("liveness_verified"),
   idVerified: timestamp("id_verified"),
   idImageUrl: varchar("id_image_url", { length: 500 }),
+  livenessImageUrl: varchar("liveness_image_url", { length: 500 }),
   // Legacy columns — kept for migration compatibility
   emailCode: varchar("email_code", { length: 10 }),
   emailCodeExpires: timestamp("email_code_expires"),

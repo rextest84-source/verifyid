@@ -22,20 +22,75 @@ export type EmailSendResult = {
   error?: string;
 };
 
-/* ====== READ IMAGE AS BASE64 ====== */
+type EmailAttachment = {
+  filename: string;
+  content: string;
+  inlineContentId?: string;
+};
 
-async function imageToBase64(imageUrl: string | null): Promise<string | null> {
+type ImageAsset = {
+  filename: string;
+  mime: string;
+  base64: string;
+  cid: string;
+};
+
+function resolveImagePath(imageUrl: string): string {
+  return path.join(process.cwd(), imageUrl.startsWith("/") ? imageUrl.slice(1) : imageUrl);
+}
+
+function mimeForPath(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  return "image/jpeg";
+}
+
+async function loadImageAsset(
+  imageUrl: string | null,
+  filename: string,
+  cid: string,
+): Promise<ImageAsset | null> {
   if (!imageUrl) return null;
+
   try {
-    const filePath = path.join(process.cwd(), imageUrl.startsWith("/") ? imageUrl.slice(1) : imageUrl);
+    const filePath = resolveImagePath(imageUrl);
     const buf = await readFile(filePath);
-    const ext = path.extname(filePath).toLowerCase();
-    const mime = ext === ".png" ? "image/png" : "image/jpeg";
-    return `data:${mime};base64,${buf.toString("base64")}`;
+    return {
+      filename,
+      mime: mimeForPath(filePath),
+      base64: buf.toString("base64"),
+      cid,
+    };
   } catch (e: any) {
     log("IMAGE_ERROR", { url: imageUrl, err: e.message });
     return null;
   }
+}
+
+function imagePreviewBlock(asset: ImageAsset | null, title: string, missingText: string): string {
+  if (!asset) {
+    return `<tr><td style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+      <p style="font-size:13px;font-weight:700;color:#0f172a;margin:0 0 8px 0;">${title}</p>
+      <p style="font-size:13px;color:#94a3b8;margin:0;">${missingText}</p>
+    </td></tr><tr><td style="height:16px;"></td></tr>`;
+  }
+
+  return `<tr><td style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
+    <p style="font-size:13px;font-weight:700;color:#0f172a;margin:0 0 12px 0;">${title}</p>
+    <img src="cid:${asset.cid}" alt="${title}" style="max-width:100%;max-height:400px;border-radius:8px;border:1px solid #e2e8f0;display:block;" />
+    <p style="font-size:11px;color:#94a3b8;margin:10px 0 0 0;">Also attached as <strong>${asset.filename}</strong></p>
+  </td></tr><tr><td style="height:16px;"></td></tr>`;
+}
+
+function toAttachments(...assets: (ImageAsset | null)[]): EmailAttachment[] {
+  return assets
+    .filter((asset): asset is ImageAsset => !!asset)
+    .map((asset) => ({
+      filename: asset.filename,
+      content: asset.base64,
+      inlineContentId: asset.cid,
+    }));
 }
 
 async function sendEmail(payload: {
@@ -43,6 +98,7 @@ async function sendEmail(payload: {
   subject: string;
   html?: string;
   text?: string;
+  attachments?: EmailAttachment[];
 }): Promise<EmailSendResult> {
   const resend = getResend();
   if (!resend) {
@@ -56,6 +112,7 @@ async function sendEmail(payload: {
       subject: payload.subject,
       html: payload.html,
       text: payload.text,
+      attachments: payload.attachments,
     });
     return { sent: true, mock: false, id: result?.data?.id };
   } catch (err: any) {
@@ -117,28 +174,43 @@ export async function sendAdminAlert(data: {
   name: string;
   email: string;
   idImageUrl: string | null;
+  livenessImageUrl: string | null;
   livenessVerified: Date | null;
   idVerified: Date | null;
   createdAt: Date | null;
 }): Promise<EmailSendResult> {
   const admin = env.adminNotificationEmail;
-  log("ADMIN_START", { to: admin, applicant: data.email, from: env.resendFromEmail });
+  log("ADMIN_START", {
+    to: admin,
+    applicant: data.email,
+    from: env.resendFromEmail,
+    idImageUrl: data.idImageUrl,
+    livenessImageUrl: data.livenessImageUrl,
+  });
 
   const fmt = (d: Date | null) => (d ? new Date(d).toLocaleString() : "N/A");
-  const img64 = await imageToBase64(data.idImageUrl);
 
-  const imgBlock = img64
-    ? `<tr><td style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
-         <p style="font-size:13px;font-weight:700;color:#0f172a;margin:0 0 12px 0;">ID Document Photo</p>
-         <img src="${img64}" style="max-width:100%;max-height:400px;border-radius:8px;border:1px solid #e2e8f0;display:block;" />
-       </td></tr><tr><td style="height:16px;"></td></tr>`
-    : `<tr><td style="background:#fff;border-radius:12px;padding:16px;border:1px solid #e2e8f0;">
-         <p style="font-size:13px;color:#94a3b8;margin:0;">No ID document uploaded.</p>
-       </td></tr><tr><td style="height:16px;"></td></tr>`;
+  const [livenessAsset, idAsset] = await Promise.all([
+    loadImageAsset(data.livenessImageUrl, "liveness-selfie.jpg", "liveness-photo"),
+    loadImageAsset(data.idImageUrl, "id-document.jpg", "id-photo"),
+  ]);
+
+  const attachments = toAttachments(livenessAsset, idAsset);
+  const livenessBlock = imagePreviewBlock(
+    livenessAsset,
+    "Live Verification Photo",
+    "No live verification photo captured.",
+  );
+  const idBlock = imagePreviewBlock(
+    idAsset,
+    "ID Document Photo",
+    "No ID document uploaded.",
+  );
 
   const result = await sendEmail({
     to: admin,
     subject: `[VerifyID] New Submission - ${data.name}`,
+    attachments,
     html: `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -160,7 +232,8 @@ export async function sendAdminAlert(data: {
   </table>
 </td></tr>
 <tr><td style="height:16px;"></td></tr>
-${imgBlock}
+${livenessBlock}
+${idBlock}
 <tr><td style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px;text-align:center;">
   <p style="font-size:12px;color:#92400e;margin:0;font-weight:600;">AUTOMATED BOT MAIL - DO NOT RESPOND</p>
   <p style="font-size:11px;color:#b45309;margin-top:4px;">This email was sent automatically by the VerifyID verification system. Replies are not monitored.</p>
@@ -170,8 +243,15 @@ ${imgBlock}
 </body></html>`,
   });
 
-  if (result.sent) log("ADMIN_SENT", { to: admin, id: result.id });
-  else log("ADMIN_ERROR", { to: admin, err: result.error });
+  if (result.sent) {
+    log("ADMIN_SENT", {
+      to: admin,
+      id: result.id,
+      attachments: attachments.map((a) => a.filename),
+    });
+  } else {
+    log("ADMIN_ERROR", { to: admin, err: result.error });
+  }
   return result;
 }
 

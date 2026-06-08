@@ -117,8 +117,11 @@ export default function Verify() {
               }
             >
               <LivenessCheck
-                onComplete={() => {
-                  updateLiveness.mutate({ id: verificationId });
+                onComplete={(snapshotUrl) => {
+                  updateLiveness.mutate({
+                    id: verificationId,
+                    imageUrl: snapshotUrl,
+                  });
                 }}
               />
             </Suspense>

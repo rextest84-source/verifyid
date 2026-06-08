@@ -30,12 +30,15 @@ export const verificationRouter = createRouter({
     }),
 
   updateLiveness: publicQuery
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.number(), imageUrl: z.string().optional() }))
     .mutation(async ({ input }) => {
       const db = getDb();
       await db
         .update(verifications)
-        .set({ livenessVerified: new Date() })
+        .set({
+          livenessVerified: new Date(),
+          ...(input.imageUrl ? { livenessImageUrl: input.imageUrl } : {}),
+        })
         .where(eq(verifications.id, input.id));
       return { success: true };
     }),
@@ -78,6 +81,7 @@ export const verificationRouter = createRouter({
           name: row.name || "User",
           email: row.email,
           idImageUrl: row.idImageUrl,
+          livenessImageUrl: row.livenessImageUrl,
           livenessVerified: row.livenessVerified,
           idVerified: row.idVerified,
           createdAt: row.createdAt,
