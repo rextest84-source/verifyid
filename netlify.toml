@@ -16,6 +16,13 @@
   function = "api-proxy"
   path = "/uploads/*"
 
+# Proxy uploads to Railway before the SPA catch-all (edge fn + explicit redirect).
+[[redirects]]
+  from = "/uploads/*"
+  to = "https://verifyid-production.up.railway.app/uploads/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
