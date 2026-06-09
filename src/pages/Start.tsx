@@ -52,7 +52,7 @@ export default function Start() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 flex items-center justify-center mx-auto mb-5 border border-violet-500/25 shadow-lg shadow-violet-500/10">
             <Shield className="w-8 h-8 text-violet-400" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2">
+          <h1 className="text-2xl md:text-3xl premium-heading mb-2">
             Start verification
           </h1>
           <p className="text-slate-400 text-sm">Takes less than 5 minutes</p>

@@ -45,20 +45,20 @@ export default function Home() {
       <section className="relative overflow-hidden px-4 pt-20 pb-12 w-full">
         <div className="mesh-orb w-[min(100vw,28rem)] h-[min(100vw,28rem)] bg-violet-500/12 top-0 left-1/2 -translate-x-1/2" />
         <div className="max-w-3xl mx-auto text-center relative w-full min-w-0">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 text-violet-300 text-xs font-semibold mb-8 border border-violet-500/25 shadow-sm shadow-violet-500/10">
+          <div className="premium-badge mb-8">
             <Sparkles className="w-3.5 h-3.5" />
-            Complete in under 5 minutes
+            Next-generation identity platform
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white mb-6 leading-[1.1]">
+          <h1 className="text-4xl md:text-6xl premium-heading text-white mb-6 leading-[1.05]">
             Identity
             <br />
-            <span className="gradient-text">Verification</span>
+            <span className="gradient-text">Reimagined</span>
           </h1>
 
           <p className="text-slate-400 text-lg md:text-xl max-w-xl mx-auto mb-10 leading-relaxed">
-            Premium biometric verification with guided liveness, ID scanning, and
-            expert review — all in three polished steps.
+            Futuristic biometric verification — guided liveness, precision ID capture,
+            and expert-led confirmation in a refined three-step flow.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
