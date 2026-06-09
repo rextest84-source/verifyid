@@ -2,17 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { trpc } from "@/providers/trpc";
 import AdminLoginGate from "@/components/AdminLoginGate";
+import ImageLightbox from "@/components/ImageLightbox";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   CheckCircle2,
   ChevronRight,
   Clock,
+  Expand,
   Eye,
   Loader2,
   LogOut,
   Mail,
   Shield,
+  Trash2,
   User,
 } from "lucide-react";
 
@@ -22,12 +25,16 @@ const FILTERS = [
   { key: "all" as const, label: "All" },
 ];
 
+type LightboxState = { src: string; label: string } | null;
+
 export default function AdminReviews() {
   const utils = trpc.useUtils();
   const detailRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<"pending_review" | "approved" | "all">("pending_review");
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [mobileDetail, setMobileDetail] = useState(false);
+  const [lightbox, setLightbox] = useState<LightboxState>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const { data: adminStatus, isLoading: adminLoading, refetch: refetchAdmin } =
     trpc.admin.status.useQuery();
@@ -50,9 +57,28 @@ export default function AdminReviews() {
     onSuccess: () => void utils.admin.status.invalidate(),
   });
 
+  const deleteMutation = trpc.verification.deleteForAdmin.useMutation({
+    onSuccess: () => {
+      void utils.verification.listForAdmin.invalidate();
+      setSelectedId(null);
+      setMobileDetail(false);
+      setDeletingId(null);
+    },
+    onError: () => setDeletingId(null),
+  });
+
   const selectSubmission = (id: number) => {
     setSelectedId(id);
     setMobileDetail(true);
+  };
+
+  const handleDelete = (id: number, name: string) => {
+    const ok = window.confirm(
+      `Delete verification for "${name}"?\n\nThis removes the submission and photos permanently. No confirmation email will be sent.`,
+    );
+    if (!ok) return;
+    setDeletingId(id);
+    deleteMutation.mutate({ id });
   };
 
   useEffect(() => {
@@ -85,6 +111,14 @@ export default function AdminReviews() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 w-full min-w-0 overflow-x-hidden">
+      <ImageLightbox
+        src={lightbox?.src ?? ""}
+        alt={lightbox?.label ?? "Verification photo"}
+        label={lightbox?.label}
+        open={!!lightbox}
+        onClose={() => setLightbox(null)}
+      />
+
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center border border-violet-500/25 shrink-0">
@@ -93,7 +127,7 @@ export default function AdminReviews() {
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-slate-100">Verification reviews</h1>
             <p className="text-xs text-slate-500">
-              Tap a submission to review photos and send confirmation email
+              Review photos, delete unwanted submissions, then send email
             </p>
           </div>
         </div>
@@ -183,15 +217,28 @@ export default function AdminReviews() {
                         onClick={() => selectSubmission(row.id)}
                         className="flex-1 text-xs py-2 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800/60"
                       >
-                        Review photos
+                        Review
                       </button>
                       <Link
                         to={`/compose?verificationId=${row.id}`}
                         className="flex-1 text-xs py-2 rounded-lg btn-glow text-center font-medium flex items-center justify-center gap-1"
                       >
                         <Mail className="w-3 h-3" />
-                        Send email
+                        Send
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(row.id, row.name)}
+                        disabled={deletingId === row.id}
+                        className="px-3 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 disabled:opacity-50"
+                        aria-label={`Delete ${row.name}`}
+                      >
+                        {deletingId === row.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     </div>
                   </div>
                 </li>
@@ -219,9 +266,6 @@ export default function AdminReviews() {
             <div className="flex flex-col items-center justify-center py-16 text-center text-slate-500">
               <User className="w-10 h-10 text-slate-600 mb-3" />
               <p className="text-sm">Select a submission to review photos and send email.</p>
-              <p className="text-xs text-slate-600 mt-2 lg:hidden">
-                Or tap <strong className="text-slate-400">Send email</strong> on any card below.
-              </p>
             </div>
           ) : selectedLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -240,12 +284,30 @@ export default function AdminReviews() {
             </div>
           ) : (
             <div className="space-y-5">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-100">{selected.name}</h2>
-                <p className="text-sm text-slate-400">{selected.email}</p>
-                <p className="text-xs text-slate-500 mt-1 capitalize">
-                  Status: {selected.status.replace("_", " ")}
-                </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-100">{selected.name}</h2>
+                  <p className="text-sm text-slate-400">{selected.email}</p>
+                  <p className="text-xs text-slate-500 mt-1 capitalize">
+                    Status: {selected.status.replace("_", " ")}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 shrink-0"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => handleDelete(selected.id, selected.name)}
+                >
+                  {deleteMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-1.5" />
+                      Delete
+                    </>
+                  )}
+                </Button>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
@@ -255,11 +317,42 @@ export default function AdminReviews() {
                     Live verification
                   </p>
                   {selected.livenessImageDataUrl ? (
-                    <img
-                      src={selected.livenessImageDataUrl}
-                      alt="Live verification"
-                      className="w-full rounded-lg border border-slate-700 object-cover max-h-48"
-                    />
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLightbox({
+                            src: selected.livenessImageDataUrl!,
+                            label: "Live verification photo",
+                          })
+                        }
+                        className="relative w-full group"
+                      >
+                        <img
+                          src={selected.livenessImageDataUrl}
+                          alt="Live verification"
+                          className="w-full rounded-lg border border-slate-700 object-cover max-h-48"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity rounded-lg">
+                          <Expand className="w-6 h-6 text-white" />
+                        </span>
+                      </button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-slate-700 text-slate-300 text-xs"
+                        onClick={() =>
+                          setLightbox({
+                            src: selected.livenessImageDataUrl!,
+                            label: "Live verification photo",
+                          })
+                        }
+                      >
+                        <Expand className="w-3.5 h-3.5 mr-1.5" />
+                        View full image
+                      </Button>
+                    </div>
                   ) : selected.livenessImageUrl ? (
                     <p className="text-xs text-amber-400 py-8 text-center px-2">
                       Photo file not found on server (may have been lost after a redeploy).
@@ -271,11 +364,42 @@ export default function AdminReviews() {
                 <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-3">
                   <p className="text-xs font-medium text-slate-400 mb-2">ID document</p>
                   {selected.idImageDataUrl ? (
-                    <img
-                      src={selected.idImageDataUrl}
-                      alt="ID document"
-                      className="w-full rounded-lg border border-slate-700 object-cover max-h-48"
-                    />
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLightbox({
+                            src: selected.idImageDataUrl!,
+                            label: "ID document photo",
+                          })
+                        }
+                        className="relative w-full group"
+                      >
+                        <img
+                          src={selected.idImageDataUrl}
+                          alt="ID document"
+                          className="w-full rounded-lg border border-slate-700 object-cover max-h-48"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity rounded-lg">
+                          <Expand className="w-6 h-6 text-white" />
+                        </span>
+                      </button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-slate-700 text-slate-300 text-xs"
+                        onClick={() =>
+                          setLightbox({
+                            src: selected.idImageDataUrl!,
+                            label: "ID document photo",
+                          })
+                        }
+                      >
+                        <Expand className="w-3.5 h-3.5 mr-1.5" />
+                        View full image
+                      </Button>
+                    </div>
                   ) : selected.idImageUrl ? (
                     <p className="text-xs text-amber-400 py-8 text-center px-2">
                       Photo file not found on server (may have been lost after a redeploy).
@@ -288,18 +412,29 @@ export default function AdminReviews() {
 
               <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
                 <p className="text-xs text-emerald-300 leading-relaxed">
-                  Compose a confirmation email for this person. Their verification photos will be
-                  embedded automatically.
+                  When ready, send a confirmation email. Delete this submission if you do not want
+                  to approve it.
                 </p>
               </div>
 
-              <Link to={`/compose?verificationId=${selected.id}`}>
-                <Button className="w-full btn-glow font-semibold">
-                  <Mail className="w-4 h-4 mr-2" />
-                  Compose & send confirmation email
-                  <ChevronRight className="w-4 h-4 ml-auto" />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Link to={`/compose?verificationId=${selected.id}`} className="flex-1">
+                  <Button className="w-full btn-glow font-semibold">
+                    <Mail className="w-4 h-4 mr-2" />
+                    Compose & send email
+                    <ChevronRight className="w-4 h-4 ml-auto" />
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => handleDelete(selected.id, selected.name)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete submission
                 </Button>
-              </Link>
+              </div>
             </div>
           )}
         </div>
