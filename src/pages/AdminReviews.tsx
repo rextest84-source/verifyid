@@ -125,9 +125,9 @@ export default function AdminReviews() {
             <Shield className="w-5 h-5 text-violet-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-100">Verification reviews</h1>
+            <h1 className="text-xl premium-heading">Verification reviews</h1>
             <p className="text-xs text-slate-500">
-              Review photos, delete unwanted submissions, then send email
+              View verification photos here — they are never sent to recipients
             </p>
           </div>
         </div>

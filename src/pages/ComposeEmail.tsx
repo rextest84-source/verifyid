@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { trpc } from "@/providers/trpc";
 import AdminLoginGate from "@/components/AdminLoginGate";
-import ImageLightbox from "@/components/ImageLightbox";
+import { buildPremiumEmailPreviewHtml } from "@/lib/emailPreviewTemplate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,47 +15,12 @@ import {
   Loader2,
   LogOut,
   Mail,
-  Expand,
   Send,
   Trash2,
   X,
 } from "lucide-react";
 
 const ACCENT_PRESETS = ["#10b981", "#8b5cf6", "#0ea5e9", "#f59e0b", "#ec4899", "#6366f1"] as const;
-
-function buildPreviewHtml(
-  headline: string,
-  body: string,
-  footer: string,
-  accent: string,
-  imageUrls: string[],
-  verificationMode: boolean,
-): string {
-  const imgs = imageUrls
-    .map(
-      (url) =>
-        `<div style="margin-top:16px;"><img src="${url}" alt="attachment" style="max-width:100%;border-radius:12px;border:1px solid #e2e8f0;" /></div>`,
-    )
-    .join("");
-
-  const verifiedBadge = verificationMode
-    ? `<div style="margin-top:16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:12px;text-align:center;font-size:13px;font-weight:700;color:#047857;">✓ Identity Verified</div>`
-    : "";
-
-  return `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
-    <div style="background:linear-gradient(135deg,${accent},#7c3aed);padding:24px;text-align:center;">
-      <h2 style="margin:0;color:#fff;font-size:20px;">${headline || "Your headline"}</h2>
-    </div>
-    <div style="background:#fff;padding:24px;color:#334155;font-size:14px;line-height:1.6;">
-      ${body || "<p>Your message appears here.</p>"}
-      ${verifiedBadge}
-      ${imgs}
-    </div>
-    <div style="background:#f1f5f9;padding:16px;text-align:center;font-size:12px;color:#64748b;">
-      ${footer || "Sent via VerifyID"}
-    </div>
-  </div>`;
-}
 
 function formatEmailError(error: string): string {
   if (
@@ -91,7 +56,6 @@ export default function ComposeEmail() {
   const [searchParams] = useSearchParams();
   const verificationId = Number(searchParams.get("verificationId") || 0) || null;
   const prefilledRef = useRef(false);
-  const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
 
   const utils = trpc.useUtils();
   const { data: adminStatus, isLoading: adminLoading, refetch: refetchAdmin } =
@@ -119,8 +83,6 @@ export default function ComposeEmail() {
   const [footerNote, setFooterNote] = useState("Sent via VerifyID");
   const [accentColor, setAccentColor] = useState<string>(ACCENT_PRESETS[0]);
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
-  const [includeLivenessPhoto, setIncludeLivenessPhoto] = useState(false);
-  const [includeIdPhoto, setIncludeIdPhoto] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -135,9 +97,7 @@ export default function ComposeEmail() {
     setBodyHtml(
       `<p>Hello ${verification.name},</p><p>We are pleased to confirm that your identity verification has been completed successfully.</p>`,
     );
-    setIncludeLivenessPhoto(false);
-    setIncludeIdPhoto(false);
-    setAccentColor("#10b981");
+    setAccentColor("#7c3aed");
   }, [verification]);
 
   const effectiveFrom = from || defaults?.defaultFrom || "VerifyID <onboarding@resend.dev>";
@@ -172,20 +132,19 @@ export default function ComposeEmail() {
     if (ok) deleteMutation.mutate({ id: verificationId });
   };
 
-  const previewImages = useMemo(() => {
-    const urls: string[] = [];
-    if (includeLivenessPhoto && verification?.livenessImageDataUrl) {
-      urls.push(verification.livenessImageDataUrl);
-    }
-    if (includeIdPhoto && verification?.idImageDataUrl) {
-      urls.push(verification.idImageDataUrl);
-    }
-    return [...urls, ...attachmentUrls.map((u) => (u.startsWith("/") ? u : `/${u}`))];
-  }, [verification, attachmentUrls, includeLivenessPhoto, includeIdPhoto]);
-
   const previewHtml = useMemo(
-    () => buildPreviewHtml(headline, bodyHtml, footerNote, accentColor, previewImages, verificationMode),
-    [headline, bodyHtml, footerNote, accentColor, previewImages, verificationMode],
+    () =>
+      buildPremiumEmailPreviewHtml({
+        headline,
+        bodyHtml,
+        footerNote,
+        accentColor,
+        showVerifiedBadge: verificationMode,
+        imageDataUrls: verificationMode
+          ? []
+          : attachmentUrls.map((u) => (u.startsWith("/") ? u : `/${u}`)),
+      }),
+    [headline, bodyHtml, footerNote, accentColor, verificationMode, attachmentUrls],
   );
 
   const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,9 +178,8 @@ export default function ComposeEmail() {
         footerNote: footerNote.trim() || undefined,
         accentColor,
         replyTo: replyTo.trim() || undefined,
-        extraAttachmentUrls: attachmentUrls.length ? attachmentUrls : undefined,
-        includeLivenessPhoto,
-        includeIdPhoto,
+        includeLivenessPhoto: false,
+        includeIdPhoto: false,
       });
       return;
     }
@@ -260,26 +218,18 @@ export default function ComposeEmail() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 w-full min-w-0 overflow-x-hidden">
-      <ImageLightbox
-        src={lightbox?.src ?? ""}
-        alt={lightbox?.label ?? "Verification photo"}
-        label={lightbox?.label}
-        open={!!lightbox}
-        onClose={() => setLightbox(null)}
-      />
-
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center border border-violet-500/25 shrink-0">
             <Mail className="w-5 h-5 text-violet-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-100">
+            <h1 className="text-xl premium-heading">
               {verificationMode ? "Send confirmation email" : "Compose Email"}
             </h1>
             <p className="text-xs text-slate-500">
               {verificationMode
-                ? `To ${verification?.name} — verification photos included automatically`
+                ? `To ${verification?.name} — text-only confirmation (no photos sent)`
                 : "Admin — send via Resend"}
             </p>
           </div>
@@ -318,8 +268,12 @@ export default function ComposeEmail() {
       )}
 
       {verificationMode && (
-        <div className="text-sm text-slate-300 bg-slate-800/40 border border-slate-700/60 rounded-lg px-3 py-2 mb-6">
-          You choose whether the recipient sees their verification photos in this email.
+        <div className="text-sm text-violet-200/90 bg-violet-500/10 border border-violet-500/25 rounded-xl px-4 py-3 mb-6">
+          Verification photos are for <strong className="text-violet-300">admin review only</strong> on{" "}
+          <Link to={`/admin`} className="text-violet-400 underline hover:text-violet-300">
+            /admin
+          </Link>
+          . They are <strong className="text-violet-300">not</strong> attached to this email.
         </div>
       )}
 
@@ -420,121 +374,9 @@ export default function ComposeEmail() {
             </div>
           </div>
 
-          {verificationMode && (verification?.livenessImageDataUrl || verification?.idImageDataUrl) && (
-            <div className="space-y-3">
-              <Label className="text-slate-300">Verification photos — include in email?</Label>
-              <p className="text-[11px] text-slate-500">
-                Off by default. Turn on only if you want the recipient to see that photo.
-              </p>
-
-              {verification?.livenessImageDataUrl && (
-                <div
-                  className={`rounded-xl border p-3 space-y-2 ${
-                    includeLivenessPhoto
-                      ? "border-emerald-500/40 bg-emerald-500/5"
-                      : "border-slate-700/60 bg-slate-900/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-slate-300">Live verification</span>
-                    <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={includeLivenessPhoto}
-                        onChange={(e) => setIncludeLivenessPhoto(e.target.checked)}
-                        className="rounded border-slate-600"
-                      />
-                      Include in email
-                    </label>
-                  </div>
-                  <div className="flex gap-2">
-                    <img
-                      src={verification.livenessImageDataUrl}
-                      alt="Live verification"
-                      className="w-16 h-16 rounded-lg object-cover border border-slate-700"
-                    />
-                    <div className="flex flex-col gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLightbox({ src: verification.livenessImageDataUrl!, label: "Live verification" })
-                        }
-                        className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800/60 flex items-center gap-1"
-                      >
-                        <Expand className="w-3 h-3" />
-                        View full
-                      </button>
-                      {includeLivenessPhoto && (
-                        <button
-                          type="button"
-                          onClick={() => setIncludeLivenessPhoto(false)}
-                          className="text-xs px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
-                        >
-                          Remove from email
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {verification?.idImageDataUrl && (
-                <div
-                  className={`rounded-xl border p-3 space-y-2 ${
-                    includeIdPhoto
-                      ? "border-emerald-500/40 bg-emerald-500/5"
-                      : "border-slate-700/60 bg-slate-900/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-slate-300">ID document</span>
-                    <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={includeIdPhoto}
-                        onChange={(e) => setIncludeIdPhoto(e.target.checked)}
-                        className="rounded border-slate-600"
-                      />
-                      Include in email
-                    </label>
-                  </div>
-                  <div className="flex gap-2">
-                    <img
-                      src={verification.idImageDataUrl}
-                      alt="ID document"
-                      className="w-16 h-16 rounded-lg object-cover border border-slate-700"
-                    />
-                    <div className="flex flex-col gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLightbox({ src: verification.idImageDataUrl!, label: "ID document" })
-                        }
-                        className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800/60 flex items-center gap-1"
-                      >
-                        <Expand className="w-3 h-3" />
-                        View full
-                      </button>
-                      {includeIdPhoto && (
-                        <button
-                          type="button"
-                          onClick={() => setIncludeIdPhoto(false)}
-                          className="text-xs px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
-                        >
-                          Remove from email
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+          {!verificationMode && (
           <div className="space-y-2">
-            <Label className="text-slate-300">
-              {verificationMode ? "Extra photo attachments (optional)" : "Photo attachments"}
-            </Label>
+            <Label className="text-slate-300">Photo attachments</Label>
             <div className="flex flex-wrap gap-2">
               {attachmentUrls.map((url) => (
                 <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-700">
@@ -558,6 +400,7 @@ export default function ComposeEmail() {
               </label>
             </div>
           </div>
+          )}
 
           {result && (
             <div
@@ -609,11 +452,13 @@ export default function ComposeEmail() {
         </div>
 
         <div className="glass-card p-5 md:p-6 min-w-0 overflow-hidden">
-          <h2 className="text-sm font-semibold text-violet-300 uppercase tracking-wide mb-4">Live preview</h2>
-          <div
-            className="bg-white rounded-xl overflow-hidden max-w-full overflow-x-auto"
-            dangerouslySetInnerHTML={{ __html: previewHtml }}
-          />
+          <h2 className="text-sm font-semibold text-violet-300 uppercase tracking-widest mb-4">Live preview</h2>
+          <div className="email-preview-frame">
+            <div
+              className="max-w-full overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
+            />
+          </div>
         </div>
       </div>
     </div>

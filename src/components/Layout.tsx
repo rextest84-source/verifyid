@@ -32,11 +32,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen ambient-bg text-slate-50 flex flex-col overflow-x-hidden w-full max-w-[100vw]">
       <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden>
+        <div className="absolute inset-0 grid-overlay opacity-60" />
         <div className="mesh-orb w-48 h-48 sm:w-72 sm:h-72 bg-violet-500/10 top-0 right-0 translate-x-1/3 -translate-y-1/3" />
         <div className="mesh-orb w-56 h-56 sm:w-80 sm:h-80 bg-fuchsia-500/8 top-1/2 left-0 -translate-x-1/3 -translate-y-1/2" />
+        <div className="mesh-orb w-40 h-40 sm:w-64 sm:h-64 bg-cyan-500/5 bottom-0 right-1/4 translate-y-1/3" />
       </div>
 
-      <header className="border-b border-slate-800/50 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-50 w-full">
+      <header className="border-b border-violet-500/10 bg-slate-950/80 backdrop-blur-2xl sticky top-0 z-50 w-full">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between w-full min-w-0">
           <Link to="/" className="flex items-center gap-3 group min-w-0 shrink">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 flex items-center justify-center border border-violet-500/20 group-hover:border-violet-500/40 transition-colors shrink-0">
@@ -46,8 +48,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <span className="font-bold text-lg tracking-tight text-slate-100 truncate">
                 Verify<span className="text-violet-400">ID</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-medium tracking-wide uppercase hidden sm:block">
-                Secure verification
+              <span className="text-[10px] text-violet-400/70 font-medium tracking-[0.2em] uppercase hidden sm:block">
+                Secure · Exclusive
               </span>
             </div>
           </Link>

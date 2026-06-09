@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { readFile } from "fs/promises";
 import path from "path";
 import { env } from "./lib/env";
+import { wrapPremiumEmailHtml } from "./email-template";
 
 let resendClient: Resend | null = null;
 
@@ -302,31 +303,20 @@ function wrapCustomEmailHtml(data: {
   accentColor: string;
   inlineImages: ImageAsset[];
 }): string {
-  const imageBlocks = data.inlineImages
+  const extraImagesHtml = data.inlineImages
     .map(
       (img) =>
-        `<tr><td style="padding-top:16px;"><img src="cid:${img.cid}" alt="${img.filename}" style="max-width:100%;border-radius:12px;border:1px solid #e2e8f0;display:block;" /></td></tr>`,
+        `<div style="margin-top:20px;border-radius:14px;overflow:hidden;border:1px solid rgba(139,92,246,0.2);"><img src="cid:${img.cid}" alt="${img.filename}" style="max-width:100%;display:block;" /></div>`,
     )
     .join("");
 
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px;">
-<table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
-<tr><td style="background:linear-gradient(135deg,${data.accentColor},#7c3aed);border-radius:16px 16px 0 0;padding:28px 24px;text-align:center;">
-  <h1 style="font-size:22px;font-weight:700;margin:0;color:#ffffff;">${data.headline}</h1>
-</td></tr>
-<tr><td style="background:#ffffff;padding:28px 24px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-  <div style="font-size:15px;line-height:1.65;color:#334155;">${data.bodyHtml}</div>
-  ${imageBlocks}
-</td></tr>
-<tr><td style="background:#f1f5f9;padding:20px 24px;border-radius:0 0 16px 16px;border:1px solid #e2e8f0;border-top:none;text-align:center;">
-  <p style="font-size:12px;color:#64748b;margin:0;">${data.footerNote || "Sent via VerifyID"}</p>
-</td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+  return wrapPremiumEmailHtml({
+    headline: data.headline,
+    bodyHtml: data.bodyHtml,
+    footerNote: data.footerNote,
+    accentColor: data.accentColor,
+    extraImagesHtml,
+  });
 }
 
 export type VerificationConfirmationInput = {
@@ -383,38 +373,29 @@ export async function sendVerificationConfirmation(
       : "",
   ].join("");
 
-  const accent = input.accentColor || "#10b981";
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px;">
-<table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
-<tr><td style="background:linear-gradient(135deg,${accent},#7c3aed);border-radius:16px 16px 0 0;padding:28px 24px;text-align:center;">
-  <h1 style="font-size:22px;font-weight:700;margin:0;color:#ffffff;">${input.headline}</h1>
-  <p style="font-size:13px;color:rgba(255,255,255,0.85);margin:8px 0 0 0;">Identity verification for ${input.name}</p>
-</td></tr>
-<tr><td style="background:#ffffff;padding:28px 24px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
-  <div style="font-size:15px;line-height:1.65;color:#334155;">${input.bodyHtml}</div>
-</td></tr>
-<tr><td style="height:16px;"></td></tr>
-<tr><td style="padding:0 24px;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0">
-    <tr><td style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:14px;text-align:center;">
-      <p style="font-size:13px;font-weight:700;color:#047857;margin:0;">✓ Identity Verified</p>
-    </td></tr>
-  </table>
-</td></tr>
-${verificationBlocks ? `<tr><td style="height:16px;"></td></tr>
-<tr><td style="padding:0 24px;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0">${verificationBlocks}</table>
-</td></tr>` : ""}
-${extraAssets.length ? `<tr><td style="padding:16px 24px 0;">${extraAssets.map((img) => `<img src="cid:${img.cid}" alt="${img.filename}" style="max-width:100%;border-radius:12px;border:1px solid #e2e8f0;display:block;margin-top:12px;" />`).join("")}</td></tr>` : ""}
-<tr><td style="background:#f1f5f9;padding:20px 24px;border-radius:0 0 16px 16px;border:1px solid #e2e8f0;border-top:none;text-align:center;margin-top:16px;">
-  <p style="font-size:12px;color:#64748b;margin:0;">${input.footerNote || "Sent via VerifyID"}</p>
-</td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+  const innerBlocksHtml = verificationBlocks
+    ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:8px;">${verificationBlocks}</table>`
+    : "";
+
+  const extraImagesHtml = extraAssets.length
+    ? extraAssets
+        .map(
+          (img) =>
+            `<div style="margin-top:20px;border-radius:14px;overflow:hidden;border:1px solid rgba(139,92,246,0.2);"><img src="cid:${img.cid}" alt="${img.filename}" style="max-width:100%;display:block;" /></div>`,
+        )
+        .join("")
+    : "";
+
+  const html = wrapPremiumEmailHtml({
+    headline: input.headline,
+    bodyHtml: input.bodyHtml,
+    footerNote: input.footerNote,
+    accentColor: input.accentColor || "#10b981",
+    subtitle: `Identity verification for ${input.name}`,
+    showVerifiedBadge: true,
+    innerBlocksHtml,
+    extraImagesHtml,
+  });
 
   const result = await sendEmail({
     from: input.from || env.resendFromEmail,
