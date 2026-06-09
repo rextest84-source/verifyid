@@ -410,10 +410,10 @@ export default function AdminReviews() {
                 </div>
               </div>
 
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-                <p className="text-xs text-emerald-300 leading-relaxed">
-                  When ready, send a confirmation email. Delete this submission if you do not want
-                  to approve it.
+              <div className="rounded-xl border border-slate-700/60 bg-slate-800/40 px-4 py-3">
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Send a confirmation email when ready. On the compose screen you choose whether
+                  photos are included. Delete this submission if you do not want to approve it.
                 </p>
               </div>
 
