@@ -2,8 +2,19 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { trpc } from "@/providers/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, CheckCircle2, XCircle, Clock, Activity, Eye, CreditCard, FileCheck, ArrowRight, AlertCircle } from "lucide-react";
+import {
+  Shield,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Activity,
+  Eye,
+  CreditCard,
+  FileCheck,
+  ArrowRight,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
 
 export default function Dashboard() {
   const [verificationId, setVerificationId] = useState<number | null>(null);
@@ -18,34 +29,37 @@ export default function Dashboard() {
 
   const { data: verification } = trpc.verification.getById.useQuery(
     { id: verificationId ?? 0 },
-    { enabled: !!verificationId, refetchInterval: 5000 }
+    { enabled: !!verificationId, refetchInterval: 5000 },
   );
 
   if (!verificationId) {
     return (
       <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center px-4">
-        <Card className="max-w-sm w-full border-slate-800 bg-slate-900/50">
-          <CardHeader className="text-center">
-            <Shield className="w-10 h-10 text-sky-400 mx-auto mb-2" />
-            <CardTitle className="text-slate-100">No Verification Found</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-slate-400 text-sm">Start a new identity verification to see your progress here.</p>
-            <Link to="/start">
-              <Button className="bg-sky-500 hover:bg-sky-600 text-white w-full">
-                Start Verification <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <div className="max-w-sm w-full glass-card p-8 text-center space-y-5">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/10 flex items-center justify-center mx-auto border border-violet-500/25">
+            <Shield className="w-7 h-7 text-violet-400" />
+          </div>
+          <div>
+            <h2 className="text-xl premium-heading text-slate-100">No verification found</h2>
+            <p className="text-slate-400 text-sm mt-2">
+              Start a new identity verification to track your progress here.
+            </p>
+          </div>
+          <Link to="/start">
+            <Button className="w-full btn-glow">
+              Start verification
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
   const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
     in_progress: { label: "In Progress", color: "text-amber-400", icon: Clock },
-    pending_review: { label: "Pending Review", color: "text-sky-400", icon: FileCheck },
-    approved: { label: "Approved", color: "text-green-400", icon: CheckCircle2 },
+    pending_review: { label: "Pending Review", color: "text-violet-400", icon: FileCheck },
+    approved: { label: "Approved", color: "text-emerald-400", icon: CheckCircle2 },
     rejected: { label: "Rejected", color: "text-red-400", icon: AlertCircle },
   };
 
@@ -87,72 +101,85 @@ export default function Dashboard() {
     !!verification?.confirmationSentAt;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-4 py-8 w-full min-w-0 overflow-x-hidden">
       <div className="mb-8">
-        <h2 className="text-sm text-slate-400 mb-1">Welcome back,</h2>
-        <h1 className="text-2xl font-bold text-slate-100">{name || "User"}</h1>
-        <p className="text-slate-500 text-sm mt-1">Manage your verification status</p>
+        <div className="premium-badge mb-4">
+          <Sparkles className="w-3.5 h-3.5" />
+          Your verification hub
+        </div>
+        <h2 className="text-sm text-slate-500 mb-1">Welcome back,</h2>
+        <h1 className="text-2xl md:text-3xl premium-heading">{name || "User"}</h1>
+        <p className="text-slate-400 text-sm mt-2">Track status and continue where you left off</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mb-8">
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-400 uppercase">Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-lg font-semibold flex items-center gap-2 ${currentStatus.color}`}>
-              <StatusIcon className="w-5 h-5" />
-              {currentStatus.label}
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-400 uppercase">Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold text-slate-100">{percent}%</div>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-slate-400 uppercase">Steps</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-semibold text-slate-100">{completed} / {steps.length}</div>
-          </CardContent>
-        </Card>
+        <div className="glass-card p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Status</p>
+          <div className={`text-lg font-semibold flex items-center gap-2 ${currentStatus.color}`}>
+            <StatusIcon className="w-5 h-5" />
+            {currentStatus.label}
+          </div>
+        </div>
+        <div className="glass-card p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Progress</p>
+          <div className="text-lg font-semibold text-slate-100">{percent}%</div>
+          <div className="mt-3 h-1.5 bg-slate-800/80 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-all duration-500"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+        </div>
+        <div className="glass-card p-5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Steps</p>
+          <div className="text-lg font-semibold text-slate-100">
+            {completed} / {steps.length}
+          </div>
+        </div>
       </div>
 
-      <Card className="border-slate-800 bg-slate-900/50 mb-8">
-        <CardHeader>
-          <CardTitle className="text-slate-100 text-base">Verification Steps</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <div className="glass-card p-6 mb-8">
+        <h3 className="text-base font-semibold text-slate-100 mb-4">Verification steps</h3>
+        <div className="space-y-3">
           {steps.map((s) => (
-            <div key={s.key} className="flex items-center justify-between rounded-xl border border-slate-800/60 bg-slate-950/50 px-4 py-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${s.done ? "bg-green-500/10 text-green-400" : "bg-slate-800 text-slate-500"}`}>
+            <div
+              key={s.key}
+              className="flex items-center justify-between rounded-xl border border-violet-500/10 bg-slate-950/40 px-4 py-3"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                    s.done ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" : "bg-slate-800/80 text-slate-500"
+                  }`}
+                >
                   <s.icon className="w-4 h-4" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-200">{s.label}</p>
-                  <p className="text-xs text-slate-500">
-                    {s.done ? (s.time ? `Completed ${new Date(s.time).toLocaleDateString()}` : "Completed") : "Not started"}
+                  <p className="text-xs text-slate-500 truncate">
+                    {s.done
+                      ? s.time
+                        ? `Completed ${new Date(s.time).toLocaleDateString()}`
+                        : "Completed"
+                      : "Not started"}
                   </p>
                 </div>
               </div>
-              {s.done ? <CheckCircle2 className="w-5 h-5 text-green-400" /> : <XCircle className="w-5 h-5 text-slate-600" />}
+              {s.done ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+              ) : (
+                <XCircle className="w-5 h-5 text-slate-600 shrink-0" />
+              )}
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {verification?.status === "approved" && (
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4 mb-8 flex items-start gap-3">
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/8 px-5 py-4 mb-8 flex items-start gap-3">
           <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-emerald-300">Identity Confirmed</p>
+            <p className="text-sm font-medium text-emerald-300">Identity confirmed</p>
             <p className="text-xs text-slate-400 mt-1">
               Your identity verification is complete.
               {verification.confirmationSentAt &&
@@ -163,10 +190,10 @@ export default function Dashboard() {
       )}
 
       {verification?.status === "pending_review" && (
-        <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 px-5 py-4 mb-8 flex items-start gap-3">
-          <Clock className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
+        <div className="rounded-2xl border border-violet-500/25 bg-violet-500/8 px-5 py-4 mb-8 flex items-start gap-3">
+          <Clock className="w-5 h-5 text-violet-400 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-sky-300">Under Review</p>
+            <p className="text-sm font-medium text-violet-300">Under review</p>
             <p className="text-xs text-slate-400 mt-1">
               Your documents are being reviewed. Our team will contact you at {verification?.email} once your identity has been confirmed.
             </p>
@@ -175,39 +202,34 @@ export default function Dashboard() {
       )}
 
       {!isSubmitted && (
-        <div className="flex justify-center">
+        <div className="flex justify-center mb-8">
           <Link to="/verify">
-            <Button className="bg-sky-500 hover:bg-sky-600 text-white">
-              Continue Verification <ArrowRight className="w-4 h-4 ml-2" />
+            <Button className="btn-glow px-8">
+              Continue verification
+              <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
         </div>
       )}
 
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardContent className="pt-6 text-center">
-            <Activity className="w-5 h-5 text-sky-400 mx-auto mb-2" />
-            <p className="text-xs text-slate-400">Score</p>
-            <p className="text-lg font-semibold text-slate-100">{percent}%</p>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardContent className="pt-6 text-center">
-            <StatusIcon className="w-5 h-5 text-sky-400 mx-auto mb-2" />
-            <p className="text-xs text-slate-400">Status</p>
-            <p className="text-lg font-semibold text-slate-100">{currentStatus.label}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-slate-800 bg-slate-900/50">
-          <CardContent className="pt-6 text-center">
-            <Shield className="w-5 h-5 text-sky-400 mx-auto mb-2" />
-            <p className="text-xs text-slate-400">Submitted</p>
-            <p className="text-lg font-semibold text-slate-100">
-              {verification?.createdAt ? new Date(verification.createdAt).toLocaleDateString() : "—"}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="glass-card p-5 text-center">
+          <Activity className="w-5 h-5 text-violet-400 mx-auto mb-2" />
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Score</p>
+          <p className="text-lg font-semibold text-slate-100 mt-1">{percent}%</p>
+        </div>
+        <div className="glass-card p-5 text-center">
+          <StatusIcon className="w-5 h-5 text-violet-400 mx-auto mb-2" />
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Status</p>
+          <p className="text-lg font-semibold text-slate-100 mt-1">{currentStatus.label}</p>
+        </div>
+        <div className="glass-card p-5 text-center">
+          <Shield className="w-5 h-5 text-violet-400 mx-auto mb-2" />
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Started</p>
+          <p className="text-lg font-semibold text-slate-100 mt-1">
+            {verification?.createdAt ? new Date(verification.createdAt).toLocaleDateString() : "—"}
+          </p>
+        </div>
       </div>
     </div>
   );
