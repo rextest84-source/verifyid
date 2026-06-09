@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { trpc } from "@/providers/trpc";
 import { Button } from "@/components/ui/button";
-import { Loader2, Send, CheckCircle2, ShieldCheck, FileCheck, Eye, CreditCard, Mail, AlertCircle, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  Send,
+  CheckCircle2,
+  ShieldCheck,
+  FileCheck,
+  Eye,
+  CreditCard,
+  Mail,
+  AlertCircle,
+} from "lucide-react";
 
 interface SubmitReviewProps {
   verificationId: number;
@@ -13,16 +23,11 @@ interface SubmitReviewProps {
 export default function SubmitReview({ verificationId, name, email, onComplete }: SubmitReviewProps) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
-  const [emailStatus, setEmailStatus] = useState<{ userSent: boolean; userError?: string } | null>(null);
 
   const submitMutation = trpc.verification.submit.useMutation({
-    onSuccess: (data) => {
+    onSuccess: () => {
       setSubmitted(true);
       setError("");
-      setEmailStatus({
-        userSent: data.emailStatus?.user?.sent ?? false,
-        userError: data.emailStatus?.user?.error,
-      });
     },
     onError: (err) => {
       setError(err.message);
@@ -31,13 +36,10 @@ export default function SubmitReview({ verificationId, name, email, onComplete }
 
   const handleSubmit = () => {
     setError("");
-    setEmailStatus(null);
     submitMutation.mutate({ id: verificationId });
   };
 
   if (submitted) {
-    const emailFailed = emailStatus && !emailStatus.userSent;
-
     return (
       <div className="space-y-6">
         <div className="flex flex-col items-center gap-4 py-6 animate-in fade-in zoom-in duration-500">
@@ -70,21 +72,12 @@ export default function SubmitReview({ verificationId, name, email, onComplete }
               <Mail className="w-4 h-4 text-sky-400" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-200">Confirmation Email</p>
-              {emailFailed ? (
-                <>
-                  <p className="text-xs text-amber-400 mt-0.5">
-                    Email delivery is temporarily unavailable. Your submission was still received successfully.
-                  </p>
-                  {emailStatus?.userError && (
-                    <p className="text-[11px] text-slate-500 mt-1">{emailStatus.userError}</p>
-                  )}
-                </>
-              ) : (
-                <p className="text-xs text-slate-400 mt-0.5">
-                  A confirmation has been sent to <span className="text-sky-400 font-medium">{email}</span>.
-                </p>
-              )}
+              <p className="text-sm font-medium text-slate-200">What happens next</p>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Our team will review your verification. You will be contacted at{" "}
+                <span className="text-sky-400 font-medium">{email}</span> once your identity
+                has been confirmed.
+              </p>
             </div>
           </div>
 
@@ -95,20 +88,11 @@ export default function SubmitReview({ verificationId, name, email, onComplete }
             <div>
               <p className="text-sm font-medium text-slate-200">Under Review</p>
               <p className="text-xs text-slate-400 mt-0.5">
-                Our team is reviewing your documents. This typically takes 1-2 business days.
+                This typically takes 1–2 business days.
               </p>
             </div>
           </div>
         </div>
-
-        {emailFailed && (
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3.5 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-400 leading-relaxed">
-              The confirmation email could not be sent to {email}. This may be because the email service is not fully configured yet. Your submission was still received and is being reviewed.
-            </p>
-          </div>
-        )}
 
         <div className="flex justify-center">
           <Button onClick={onComplete} className="bg-sky-500 hover:bg-sky-600 text-white px-8">
@@ -158,7 +142,7 @@ export default function SubmitReview({ verificationId, name, email, onComplete }
             <Mail className="w-4 h-4 text-sky-400" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-medium text-slate-200">Notification Email</p>
+            <p className="text-sm font-medium text-slate-200">Contact email</p>
             <p className="text-xs text-slate-500">{email}</p>
           </div>
         </div>
@@ -176,12 +160,18 @@ export default function SubmitReview({ verificationId, name, email, onComplete }
 
       {error && (
         <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 rounded-lg px-4 py-3 border border-red-500/20">
-          <AlertCircle className="w-4 h-4 shrink-0" />{error}
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {error}
         </div>
       )}
 
       <div className="flex justify-center">
-        <Button onClick={handleSubmit} disabled={submitMutation.isPending} className="bg-sky-500 hover:bg-sky-600 text-white px-10" size="lg">
+        <Button
+          onClick={handleSubmit}
+          disabled={submitMutation.isPending}
+          className="bg-sky-500 hover:bg-sky-600 text-white px-10"
+          size="lg"
+        >
           {submitMutation.isPending ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : (

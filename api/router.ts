@@ -11,9 +11,6 @@ export const appRouter = createRouter({
   health: publicQuery.query(() => ({
     ok: true,
     resendConfigured: !!env.resendApiKey,
-    resendKeyPrefix: env.resendApiKey ? env.resendApiKey.slice(0, 8) + "..." : "none",
-    resendFromEmail: env.resendFromEmail,
-    adminNotificationEmail: env.adminNotificationEmail,
     env: process.env.NODE_ENV || "development",
     ts: Date.now(),
   })),

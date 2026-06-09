@@ -27,8 +27,8 @@ const FEATURES = [
   },
   {
     icon: Mail,
-    title: "Email Confirm",
-    desc: "One-click confirmation to complete your verification securely",
+    title: "Team Review",
+    desc: "Your submission is reviewed and confirmed by our verification team",
     accent: "from-emerald-500/20 to-green-500/5",
   },
 ] as const;
@@ -36,7 +36,7 @@ const FEATURES = [
 const STEPS = [
   { step: "1", title: "Enter Details", desc: "Name and email — takes 30 seconds." },
   { step: "2", title: "Complete Steps", desc: "Camera-guided liveness, then ID upload." },
-  { step: "3", title: "Get Verified", desc: "Instant submission with email confirmation." },
+  { step: "3", title: "Get Verified", desc: "Submit for review — our team confirms your identity." },
 ] as const;
 
 export default function Home() {
@@ -58,7 +58,7 @@ export default function Home() {
 
           <p className="text-slate-400 text-lg md:text-xl max-w-xl mx-auto mb-10 leading-relaxed">
             Premium biometric verification with guided liveness, ID scanning, and
-            email confirmation — all in three polished steps.
+            expert review — all in three polished steps.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
