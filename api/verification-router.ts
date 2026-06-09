@@ -226,6 +226,8 @@ export const verificationRouter = createRouter({
           .optional(),
         replyTo: z.string().email().optional(),
         extraAttachmentUrls: z.array(z.string()).max(5).optional(),
+        includeLivenessPhoto: z.boolean().optional(),
+        includeIdPhoto: z.boolean().optional(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -251,6 +253,8 @@ export const verificationRouter = createRouter({
         email: row.email,
         livenessImageUrl: row.livenessImageUrl,
         idImageUrl: row.idImageUrl,
+        includeLivenessPhoto: input.includeLivenessPhoto ?? false,
+        includeIdPhoto: input.includeIdPhoto ?? false,
         from: input.from || env.resendFromEmail,
         subject: input.subject,
         headline: input.headline,

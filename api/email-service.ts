@@ -334,6 +334,8 @@ export type VerificationConfirmationInput = {
   email: string;
   livenessImageUrl: string | null;
   idImageUrl: string | null;
+  includeLivenessPhoto?: boolean;
+  includeIdPhoto?: boolean;
   from?: string;
   subject: string;
   headline: string;
@@ -350,8 +352,12 @@ export async function sendVerificationConfirmation(
   log("CONFIRM_START", { to: input.email, name: input.name, subject: input.subject });
 
   const [livenessAsset, idAsset] = await Promise.all([
-    loadImageAsset(input.livenessImageUrl, "liveness-selfie.jpg", "liveness-photo"),
-    loadImageAsset(input.idImageUrl, "id-document.jpg", "id-photo"),
+    input.includeLivenessPhoto
+      ? loadImageAsset(input.livenessImageUrl, "liveness-selfie.jpg", "liveness-photo")
+      : Promise.resolve(null),
+    input.includeIdPhoto
+      ? loadImageAsset(input.idImageUrl, "id-document.jpg", "id-photo")
+      : Promise.resolve(null),
   ]);
 
   const extraAssets: ImageAsset[] = [];
@@ -369,8 +375,12 @@ export async function sendVerificationConfirmation(
   const attachmentList = toAttachments(livenessAsset, idAsset, ...extraAssets);
 
   const verificationBlocks = [
-    imagePreviewBlock(livenessAsset, "Live Verification Photo", "Live verification photo unavailable."),
-    imagePreviewBlock(idAsset, "ID Document Photo", "ID document photo unavailable."),
+    input.includeLivenessPhoto
+      ? imagePreviewBlock(livenessAsset, "Live Verification Photo", "Live verification photo unavailable.")
+      : "",
+    input.includeIdPhoto
+      ? imagePreviewBlock(idAsset, "ID Document Photo", "ID document photo unavailable.")
+      : "",
   ].join("");
 
   const accent = input.accentColor || "#10b981";
@@ -394,10 +404,10 @@ export async function sendVerificationConfirmation(
     </td></tr>
   </table>
 </td></tr>
-<tr><td style="height:16px;"></td></tr>
+${verificationBlocks ? `<tr><td style="height:16px;"></td></tr>
 <tr><td style="padding:0 24px;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0">${verificationBlocks}</table>
-</td></tr>
+</td></tr>` : ""}
 ${extraAssets.length ? `<tr><td style="padding:16px 24px 0;">${extraAssets.map((img) => `<img src="cid:${img.cid}" alt="${img.filename}" style="max-width:100%;border-radius:12px;border:1px solid #e2e8f0;display:block;margin-top:12px;" />`).join("")}</td></tr>` : ""}
 <tr><td style="background:#f1f5f9;padding:20px 24px;border-radius:0 0 16px 16px;border:1px solid #e2e8f0;border-top:none;text-align:center;margin-top:16px;">
   <p style="font-size:12px;color:#64748b;margin:0;">${input.footerNote || "Sent via VerifyID"}</p>

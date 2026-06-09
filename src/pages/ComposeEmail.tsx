@@ -119,6 +119,8 @@ export default function ComposeEmail() {
   const [footerNote, setFooterNote] = useState("Sent via VerifyID");
   const [accentColor, setAccentColor] = useState<string>(ACCENT_PRESETS[0]);
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
+  const [includeLivenessPhoto, setIncludeLivenessPhoto] = useState(false);
+  const [includeIdPhoto, setIncludeIdPhoto] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -131,8 +133,10 @@ export default function ComposeEmail() {
     setSubject("VerifyID — Your Identity Has Been Verified");
     setHeadline("Identity Verified");
     setBodyHtml(
-      `<p>Hello ${verification.name},</p><p>We are pleased to confirm that your identity verification has been completed successfully.</p><p>Your verification photos are included in this email for your records.</p>`,
+      `<p>Hello ${verification.name},</p><p>We are pleased to confirm that your identity verification has been completed successfully.</p>`,
     );
+    setIncludeLivenessPhoto(false);
+    setIncludeIdPhoto(false);
     setAccentColor("#10b981");
   }, [verification]);
 
@@ -170,10 +174,14 @@ export default function ComposeEmail() {
 
   const previewImages = useMemo(() => {
     const urls: string[] = [];
-    if (verification?.livenessImageDataUrl) urls.push(verification.livenessImageDataUrl);
-    if (verification?.idImageDataUrl) urls.push(verification.idImageDataUrl);
+    if (includeLivenessPhoto && verification?.livenessImageDataUrl) {
+      urls.push(verification.livenessImageDataUrl);
+    }
+    if (includeIdPhoto && verification?.idImageDataUrl) {
+      urls.push(verification.idImageDataUrl);
+    }
     return [...urls, ...attachmentUrls.map((u) => (u.startsWith("/") ? u : `/${u}`))];
-  }, [verification, attachmentUrls]);
+  }, [verification, attachmentUrls, includeLivenessPhoto, includeIdPhoto]);
 
   const previewHtml = useMemo(
     () => buildPreviewHtml(headline, bodyHtml, footerNote, accentColor, previewImages, verificationMode),
@@ -212,6 +220,8 @@ export default function ComposeEmail() {
         accentColor,
         replyTo: replyTo.trim() || undefined,
         extraAttachmentUrls: attachmentUrls.length ? attachmentUrls : undefined,
+        includeLivenessPhoto,
+        includeIdPhoto,
       });
       return;
     }
@@ -308,8 +318,8 @@ export default function ComposeEmail() {
       )}
 
       {verificationMode && (
-        <div className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-lg px-3 py-2 mb-6">
-          Live verification and ID photos will be embedded in the email automatically.
+        <div className="text-sm text-slate-300 bg-slate-800/40 border border-slate-700/60 rounded-lg px-3 py-2 mb-6">
+          You choose whether the recipient sees their verification photos in this email.
         </div>
       )}
 
@@ -411,34 +421,113 @@ export default function ComposeEmail() {
           </div>
 
           {verificationMode && (verification?.livenessImageDataUrl || verification?.idImageDataUrl) && (
-            <div className="space-y-2">
-              <Label className="text-slate-300">Verification photos (included in email)</Label>
-              <div className="flex flex-wrap gap-2">
-                {verification?.livenessImageDataUrl && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setLightbox({ src: verification.livenessImageDataUrl!, label: "Live verification" })
-                    }
-                    className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
-                  >
-                    <Expand className="w-3.5 h-3.5" />
-                    View liveness
-                  </button>
-                )}
-                {verification?.idImageDataUrl && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setLightbox({ src: verification.idImageDataUrl!, label: "ID document" })
-                    }
-                    className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
-                  >
-                    <Expand className="w-3.5 h-3.5" />
-                    View ID
-                  </button>
-                )}
-              </div>
+            <div className="space-y-3">
+              <Label className="text-slate-300">Verification photos — include in email?</Label>
+              <p className="text-[11px] text-slate-500">
+                Off by default. Turn on only if you want the recipient to see that photo.
+              </p>
+
+              {verification?.livenessImageDataUrl && (
+                <div
+                  className={`rounded-xl border p-3 space-y-2 ${
+                    includeLivenessPhoto
+                      ? "border-emerald-500/40 bg-emerald-500/5"
+                      : "border-slate-700/60 bg-slate-900/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-300">Live verification</span>
+                    <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeLivenessPhoto}
+                        onChange={(e) => setIncludeLivenessPhoto(e.target.checked)}
+                        className="rounded border-slate-600"
+                      />
+                      Include in email
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <img
+                      src={verification.livenessImageDataUrl}
+                      alt="Live verification"
+                      className="w-16 h-16 rounded-lg object-cover border border-slate-700"
+                    />
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLightbox({ src: verification.livenessImageDataUrl!, label: "Live verification" })
+                        }
+                        className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800/60 flex items-center gap-1"
+                      >
+                        <Expand className="w-3 h-3" />
+                        View full
+                      </button>
+                      {includeLivenessPhoto && (
+                        <button
+                          type="button"
+                          onClick={() => setIncludeLivenessPhoto(false)}
+                          className="text-xs px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                        >
+                          Remove from email
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {verification?.idImageDataUrl && (
+                <div
+                  className={`rounded-xl border p-3 space-y-2 ${
+                    includeIdPhoto
+                      ? "border-emerald-500/40 bg-emerald-500/5"
+                      : "border-slate-700/60 bg-slate-900/40"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-slate-300">ID document</span>
+                    <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeIdPhoto}
+                        onChange={(e) => setIncludeIdPhoto(e.target.checked)}
+                        className="rounded border-slate-600"
+                      />
+                      Include in email
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <img
+                      src={verification.idImageDataUrl}
+                      alt="ID document"
+                      className="w-16 h-16 rounded-lg object-cover border border-slate-700"
+                    />
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLightbox({ src: verification.idImageDataUrl!, label: "ID document" })
+                        }
+                        className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800/60 flex items-center gap-1"
+                      >
+                        <Expand className="w-3 h-3" />
+                        View full
+                      </button>
+                      {includeIdPhoto && (
+                        <button
+                          type="button"
+                          onClick={() => setIncludeIdPhoto(false)}
+                          className="text-xs px-2.5 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                        >
+                          Remove from email
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
