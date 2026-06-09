@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { trpc } from "@/providers/trpc";
 import AdminLoginGate from "@/components/AdminLoginGate";
+import ImageLightbox from "@/components/ImageLightbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,9 @@ import {
   Loader2,
   LogOut,
   Mail,
+  Expand,
   Send,
+  Trash2,
   X,
 } from "lucide-react";
 
@@ -54,6 +57,17 @@ function buildPreviewHtml(
   </div>`;
 }
 
+function formatEmailError(error: string): string {
+  if (
+    error.includes("verify a domain") ||
+    error.includes("testing emails") ||
+    error.includes("resend.dev")
+  ) {
+    return `${error}\n\nTo fix: (1) Verify dsc-infoverifyid.com at resend.com/domains (2) On Railway set RESEND_FROM_EMAIL to VerifyID <noreply@dsc-infoverifyid.com> (3) Redeploy. Until then you can only send to rextest84@gmail.com.`;
+  }
+  return error;
+}
+
 function handleSendResult(
   data: { sent: boolean; id?: string; error?: string },
   setResult: (r: { ok: boolean; message: string }) => void,
@@ -65,15 +79,19 @@ function handleSendResult(
   } else {
     setResult({
       ok: false,
-      message: data.error || "Email could not be sent. Check sender domain in Resend.",
+      message: formatEmailError(
+        data.error || "Email could not be sent. Check sender domain in Resend.",
+      ),
     });
   }
 }
 
 export default function ComposeEmail() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const verificationId = Number(searchParams.get("verificationId") || 0) || null;
   const prefilledRef = useRef(false);
+  const [lightbox, setLightbox] = useState<{ src: string; label: string } | null>(null);
 
   const utils = trpc.useUtils();
   const { data: adminStatus, isLoading: adminLoading, refetch: refetchAdmin } =
@@ -122,7 +140,7 @@ export default function ComposeEmail() {
 
   const sendCustomMutation = trpc.email.sendCustom.useMutation({
     onSuccess: (data) => handleSendResult(data, setResult),
-    onError: (err) => setResult({ ok: false, message: err.message }),
+    onError: (err) => setResult({ ok: false, message: formatEmailError(err.message) }),
   });
 
   const sendConfirmationMutation = trpc.verification.sendConfirmation.useMutation({
@@ -130,10 +148,25 @@ export default function ComposeEmail() {
       handleSendResult(data, setResult);
       if (data.sent) void utils.verification.listForAdmin.invalidate();
     },
-    onError: (err) => setResult({ ok: false, message: err.message }),
+    onError: (err) => setResult({ ok: false, message: formatEmailError(err.message) }),
+  });
+
+  const deleteMutation = trpc.verification.deleteForAdmin.useMutation({
+    onSuccess: () => {
+      void utils.verification.listForAdmin.invalidate();
+      navigate("/admin");
+    },
   });
 
   const isSending = sendCustomMutation.isPending || sendConfirmationMutation.isPending;
+
+  const handleDeleteSubmission = () => {
+    if (!verificationId || !verification) return;
+    const ok = window.confirm(
+      `Delete verification for "${verification.name}"?\n\nNo confirmation email will be sent.`,
+    );
+    if (ok) deleteMutation.mutate({ id: verificationId });
+  };
 
   const previewImages = useMemo(() => {
     const urls: string[] = [];
@@ -217,6 +250,14 @@ export default function ComposeEmail() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 w-full min-w-0 overflow-x-hidden">
+      <ImageLightbox
+        src={lightbox?.src ?? ""}
+        alt={lightbox?.label ?? "Verification photo"}
+        label={lightbox?.label}
+        open={!!lightbox}
+        onClose={() => setLightbox(null)}
+      />
+
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-violet-500/15 flex items-center justify-center border border-violet-500/25 shrink-0">
@@ -257,6 +298,12 @@ export default function ComposeEmail() {
       {!defaults?.resendConfigured && (
         <p className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mb-6 break-words">
           RESEND_API_KEY is not set on Railway — emails cannot be delivered.
+        </p>
+      )}
+
+      {defaults?.isTestSender && (
+        <p className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mb-6 break-words whitespace-pre-line">
+          {defaults.domainSetupHint}
         </p>
       )}
 
@@ -363,21 +410,43 @@ export default function ComposeEmail() {
             </div>
           </div>
 
+          {verificationMode && (verification?.livenessImageDataUrl || verification?.idImageDataUrl) && (
+            <div className="space-y-2">
+              <Label className="text-slate-300">Verification photos (included in email)</Label>
+              <div className="flex flex-wrap gap-2">
+                {verification?.livenessImageDataUrl && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLightbox({ src: verification.livenessImageDataUrl!, label: "Live verification" })
+                    }
+                    className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+                  >
+                    <Expand className="w-3.5 h-3.5" />
+                    View liveness
+                  </button>
+                )}
+                {verification?.idImageDataUrl && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLightbox({ src: verification.idImageDataUrl!, label: "ID document" })
+                    }
+                    className="flex items-center gap-2 text-xs px-3 py-2 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
+                  >
+                    <Expand className="w-3.5 h-3.5" />
+                    View ID
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label className="text-slate-300">
               {verificationMode ? "Extra photo attachments (optional)" : "Photo attachments"}
             </Label>
             <div className="flex flex-wrap gap-2">
-              {verificationMode && verification?.livenessImageDataUrl && (
-                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-emerald-500/40 opacity-80">
-                  <img src={verification.livenessImageDataUrl} alt="Liveness" className="w-full h-full object-cover" />
-                </div>
-              )}
-              {verificationMode && verification?.idImageDataUrl && (
-                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-emerald-500/40 opacity-80">
-                  <img src={verification.idImageDataUrl} alt="ID" className="w-full h-full object-cover" />
-                </div>
-              )}
               {attachmentUrls.map((url) => (
                 <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-700">
                   <img src={url.startsWith("/") ? url : `/${url}`} alt="" className="w-full h-full object-cover" />
@@ -403,7 +472,7 @@ export default function ComposeEmail() {
 
           {result && (
             <div
-              className={`text-sm rounded-lg px-3 py-2 break-words ${
+              className={`text-sm rounded-lg px-3 py-2 break-words whitespace-pre-line ${
                 result.ok
                   ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/25"
                   : "text-red-400 bg-red-500/10 border border-red-500/25"
@@ -414,9 +483,26 @@ export default function ComposeEmail() {
             </div>
           )}
 
+          {verificationMode && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10"
+              disabled={deleteMutation.isPending}
+              onClick={handleDeleteSubmission}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-2" />
+              )}
+              Delete submission (do not send email)
+            </Button>
+          )}
+
           <Button
             onClick={handleSend}
-            disabled={isSending || uploading}
+            disabled={isSending || uploading || deleteMutation.isPending}
             className="w-full btn-glow font-semibold"
           >
             {isSending ? (

@@ -6,7 +6,7 @@ import { getDb } from "./queries/connection";
 import { verifications } from "@db/schema";
 import { sendAdminAlert, sendTestEmail, sendVerificationConfirmation } from "./email-service";
 import { env } from "./lib/env";
-import { readUploadAsDataUrl } from "./upload-storage";
+import { deleteUploadFile, readUploadAsDataUrl } from "./upload-storage";
 
 const statusFilter = z.enum(["all", "in_progress", "pending_review", "approved", "rejected"]);
 
@@ -186,6 +186,29 @@ export const verificationRouter = createRouter({
         livenessImageDataUrl,
         idImageDataUrl,
       };
+    }),
+
+  deleteForAdmin: adminComposeQuery
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const rows = await db
+        .select()
+        .from(verifications)
+        .where(eq(verifications.id, input.id))
+        .limit(1);
+      const row = rows[0];
+      if (!row) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Verification not found" });
+      }
+
+      await Promise.all([
+        deleteUploadFile(row.livenessImageUrl),
+        deleteUploadFile(row.idImageUrl),
+      ]);
+      await db.delete(verifications).where(eq(verifications.id, input.id));
+
+      return { success: true };
     }),
 
   sendConfirmation: adminComposeQuery

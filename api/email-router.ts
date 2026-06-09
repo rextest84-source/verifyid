@@ -16,10 +16,18 @@ const emailList = z
   );
 
 export const emailRouter = createRouter({
-  getDefaults: adminComposeQuery.query(() => ({
-    defaultFrom: env.resendFromEmail,
-    resendConfigured: !!env.resendApiKey,
-  })),
+  getDefaults: adminComposeQuery.query(() => {
+    const from = env.resendFromEmail;
+    const isTestSender = /@resend\.dev>/i.test(from) || from.includes("onboarding@resend.dev");
+    return {
+      defaultFrom: from,
+      resendConfigured: !!env.resendApiKey,
+      isTestSender,
+      domainSetupHint: isTestSender
+        ? "Verify dsc-infoverifyid.com at resend.com/domains and set RESEND_FROM_EMAIL to VerifyID <noreply@dsc-infoverifyid.com> on Railway."
+        : null,
+    };
+  }),
 
   sendCustom: adminComposeQuery
     .input(

@@ -1,4 +1,4 @@
-import { readFile } from "fs/promises";
+import { readFile, unlink } from "fs/promises";
 import path from "path";
 
 export function resolveUploadPath(imageUrl: string): string {
@@ -22,6 +22,15 @@ export async function readUploadAsDataUrl(imageUrl: string | null): Promise<stri
     return `data:${mime};base64,${buf.toString("base64")}`;
   } catch {
     return null;
+  }
+}
+
+export async function deleteUploadFile(imageUrl: string | null): Promise<void> {
+  if (!imageUrl) return;
+  try {
+    await unlink(resolveUploadPath(imageUrl));
+  } catch {
+    // File may already be missing
   }
 }
 
