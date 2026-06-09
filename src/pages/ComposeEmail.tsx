@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { apiUrl } from "@/lib/api";
 import { uploadImageFile } from "@/lib/upload";
 import {
   ArrowLeft,
@@ -138,9 +137,9 @@ export default function ComposeEmail() {
 
   const previewImages = useMemo(() => {
     const urls: string[] = [];
-    if (verification?.livenessImageUrl) urls.push(apiUrl(verification.livenessImageUrl));
-    if (verification?.idImageUrl) urls.push(apiUrl(verification.idImageUrl));
-    return [...urls, ...attachmentUrls.map((u) => apiUrl(u))];
+    if (verification?.livenessImageDataUrl) urls.push(verification.livenessImageDataUrl);
+    if (verification?.idImageDataUrl) urls.push(verification.idImageDataUrl);
+    return [...urls, ...attachmentUrls.map((u) => (u.startsWith("/") ? u : `/${u}`))];
   }, [verification, attachmentUrls]);
 
   const previewHtml = useMemo(
@@ -369,19 +368,19 @@ export default function ComposeEmail() {
               {verificationMode ? "Extra photo attachments (optional)" : "Photo attachments"}
             </Label>
             <div className="flex flex-wrap gap-2">
-              {verificationMode && verification?.livenessImageUrl && (
+              {verificationMode && verification?.livenessImageDataUrl && (
                 <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-emerald-500/40 opacity-80">
-                  <img src={apiUrl(verification.livenessImageUrl)} alt="Liveness" className="w-full h-full object-cover" />
+                  <img src={verification.livenessImageDataUrl} alt="Liveness" className="w-full h-full object-cover" />
                 </div>
               )}
-              {verificationMode && verification?.idImageUrl && (
+              {verificationMode && verification?.idImageDataUrl && (
                 <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-emerald-500/40 opacity-80">
-                  <img src={apiUrl(verification.idImageUrl)} alt="ID" className="w-full h-full object-cover" />
+                  <img src={verification.idImageDataUrl} alt="ID" className="w-full h-full object-cover" />
                 </div>
               )}
               {attachmentUrls.map((url) => (
                 <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-700">
-                  <img src={apiUrl(url)} alt="" className="w-full h-full object-cover" />
+                  <img src={url.startsWith("/") ? url : `/${url}`} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setAttachmentUrls((prev) => prev.filter((u) => u !== url))}

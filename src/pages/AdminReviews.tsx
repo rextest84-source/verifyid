@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { trpc } from "@/providers/trpc";
 import AdminLoginGate from "@/components/AdminLoginGate";
-import { apiUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -22,11 +21,6 @@ const FILTERS = [
   { key: "approved" as const, label: "Confirmed" },
   { key: "all" as const, label: "All" },
 ];
-
-function assetUrl(path: string | null | undefined): string {
-  if (!path) return "";
-  return apiUrl(path);
-}
 
 export default function AdminReviews() {
   const utils = trpc.useUtils();
@@ -260,26 +254,34 @@ export default function AdminReviews() {
                     <Eye className="w-3.5 h-3.5" />
                     Live verification
                   </p>
-                  {selected.livenessImageUrl ? (
+                  {selected.livenessImageDataUrl ? (
                     <img
-                      src={assetUrl(selected.livenessImageUrl)}
+                      src={selected.livenessImageDataUrl}
                       alt="Live verification"
                       className="w-full rounded-lg border border-slate-700 object-cover max-h-48"
                     />
+                  ) : selected.livenessImageUrl ? (
+                    <p className="text-xs text-amber-400 py-8 text-center px-2">
+                      Photo file not found on server (may have been lost after a redeploy).
+                    </p>
                   ) : (
-                    <p className="text-xs text-slate-600 py-8 text-center">No photo</p>
+                    <p className="text-xs text-slate-600 py-8 text-center">No photo captured</p>
                   )}
                 </div>
                 <div className="rounded-xl border border-slate-700/60 bg-slate-900/50 p-3">
                   <p className="text-xs font-medium text-slate-400 mb-2">ID document</p>
-                  {selected.idImageUrl ? (
+                  {selected.idImageDataUrl ? (
                     <img
-                      src={assetUrl(selected.idImageUrl)}
+                      src={selected.idImageDataUrl}
                       alt="ID document"
                       className="w-full rounded-lg border border-slate-700 object-cover max-h-48"
                     />
+                  ) : selected.idImageUrl ? (
+                    <p className="text-xs text-amber-400 py-8 text-center px-2">
+                      Photo file not found on server (may have been lost after a redeploy).
+                    </p>
                   ) : (
-                    <p className="text-xs text-slate-600 py-8 text-center">No photo</p>
+                    <p className="text-xs text-slate-600 py-8 text-center">No photo uploaded</p>
                   )}
                 </div>
               </div>

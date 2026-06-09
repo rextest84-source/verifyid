@@ -6,6 +6,7 @@ import { getDb } from "./queries/connection";
 import { verifications } from "@db/schema";
 import { sendAdminAlert, sendTestEmail, sendVerificationConfirmation } from "./email-service";
 import { env } from "./lib/env";
+import { readUploadAsDataUrl } from "./upload-storage";
 
 const statusFilter = z.enum(["all", "in_progress", "pending_review", "approved", "rejected"]);
 
@@ -172,10 +173,18 @@ export const verificationRouter = createRouter({
         .limit(1);
       const row = rows[0];
       if (!row) return null;
+
+      const [livenessImageDataUrl, idImageDataUrl] = await Promise.all([
+        readUploadAsDataUrl(row.livenessImageUrl),
+        readUploadAsDataUrl(row.idImageUrl),
+      ]);
+
       return {
         ...toAdminSummary(row),
         livenessImageUrl: row.livenessImageUrl,
         idImageUrl: row.idImageUrl,
+        livenessImageDataUrl,
+        idImageDataUrl,
       };
     }),
 
