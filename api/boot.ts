@@ -90,6 +90,6 @@ serve({ fetch: app.fetch, port }, () => {
   if (!env.resendApiKey) {
     console.warn("[EMAIL] RESEND_API_KEY is not set — submission emails will not be sent");
   } else {
-    console.log(`[EMAIL] Resend configured (from: ${env.resendFromEmail}, admin: ${env.adminNotificationEmail})`);
+    console.log(`[EMAIL] Resend configured (from: ${env.resendFromEmail})`);
   }
 });

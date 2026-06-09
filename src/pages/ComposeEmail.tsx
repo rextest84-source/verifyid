@@ -1,22 +1,24 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router";
 import { trpc } from "@/providers/trpc";
+import AdminLoginGate from "@/components/AdminLoginGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { uploadImageFile } from "@/lib/upload";
 import {
+  ArrowLeft,
   CheckCircle2,
   ImagePlus,
   Loader2,
-  Lock,
   LogOut,
   Mail,
   Send,
   X,
 } from "lucide-react";
 
-const ACCENT_PRESETS = ["#8b5cf6", "#0ea5e9", "#10b981", "#f59e0b", "#ec4899", "#6366f1"] as const;
+const ACCENT_PRESETS = ["#10b981", "#8b5cf6", "#0ea5e9", "#f59e0b", "#ec4899", "#6366f1"] as const;
 
 function buildPreviewHtml(
   headline: string,
@@ -24,6 +26,7 @@ function buildPreviewHtml(
   footer: string,
   accent: string,
   imageUrls: string[],
+  verificationMode: boolean,
 ): string {
   const imgs = imageUrls
     .map(
@@ -32,12 +35,17 @@ function buildPreviewHtml(
     )
     .join("");
 
+  const verifiedBadge = verificationMode
+    ? `<div style="margin-top:16px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:12px;text-align:center;font-size:13px;font-weight:700;color:#047857;">✓ Identity Verified</div>`
+    : "";
+
   return `<div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;background:#f8fafc;border-radius:16px;overflow:hidden;border:1px solid #e2e8f0;">
     <div style="background:linear-gradient(135deg,${accent},#7c3aed);padding:24px;text-align:center;">
       <h2 style="margin:0;color:#fff;font-size:20px;">${headline || "Your headline"}</h2>
     </div>
     <div style="background:#fff;padding:24px;color:#334155;font-size:14px;line-height:1.6;">
       ${body || "<p>Your message appears here.</p>"}
+      ${verifiedBadge}
       ${imgs}
     </div>
     <div style="background:#f1f5f9;padding:16px;text-align:center;font-size:12px;color:#64748b;">
@@ -46,55 +54,27 @@ function buildPreviewHtml(
   </div>`;
 }
 
-function AdminLoginGate({ onSuccess }: { onSuccess: () => void }) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const loginMutation = trpc.admin.login.useMutation({
-    onSuccess: () => {
-      setError("");
-      onSuccess();
-    },
-    onError: (err) => setError(err.message),
-  });
-
-  return (
-    <div className="max-w-sm mx-auto glass-card p-8 space-y-5">
-      <div className="text-center space-y-2">
-        <div className="w-14 h-14 rounded-2xl bg-violet-500/15 flex items-center justify-center mx-auto border border-violet-500/25">
-          <Lock className="w-7 h-7 text-violet-400" />
-        </div>
-        <h1 className="text-xl font-bold text-slate-100">Admin only</h1>
-        <p className="text-sm text-slate-400">
-          Enter the admin password to access the email composer.
-        </p>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="admin-password" className="text-slate-300">Admin password</Label>
-        <Input
-          id="admin-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="bg-slate-900 border-slate-700 text-slate-100"
-          onKeyDown={(e) => e.key === "Enter" && loginMutation.mutate({ password })}
-        />
-      </div>
-      {error && (
-        <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2 break-words">{error}</p>
-      )}
-      <Button
-        className="w-full btn-glow"
-        disabled={!password || loginMutation.isPending}
-        onClick={() => loginMutation.mutate({ password })}
-      >
-        {loginMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Unlock"}
-      </Button>
-    </div>
-  );
+function handleSendResult(
+  data: { sent: boolean; id?: string; error?: string },
+  setResult: (r: { ok: boolean; message: string }) => void,
+) {
+  if (data.sent && data.id) {
+    setResult({ ok: true, message: `Email delivered (Resend ID: ${data.id})` });
+  } else if (data.sent) {
+    setResult({ ok: true, message: "Email accepted by Resend" });
+  } else {
+    setResult({
+      ok: false,
+      message: data.error || "Email could not be sent. Check sender domain in Resend.",
+    });
+  }
 }
 
 export default function ComposeEmail() {
+  const [searchParams] = useSearchParams();
+  const verificationId = Number(searchParams.get("verificationId") || 0) || null;
+  const prefilledRef = useRef(false);
+
   const utils = trpc.useUtils();
   const { data: adminStatus, isLoading: adminLoading, refetch: refetchAdmin } =
     trpc.admin.status.useQuery();
@@ -102,6 +82,11 @@ export default function ComposeEmail() {
   const { data: defaults } = trpc.email.getDefaults.useQuery(undefined, {
     enabled: !!adminStatus?.isAdmin,
   });
+
+  const { data: verification } = trpc.verification.getForAdmin.useQuery(
+    { id: verificationId ?? 0 },
+    { enabled: !!adminStatus?.isAdmin && !!verificationId },
+  );
 
   const logoutMutation = trpc.admin.logout.useMutation({
     onSuccess: () => void utils.admin.status.invalidate(),
@@ -119,29 +104,47 @@ export default function ComposeEmail() {
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  const verificationMode = !!verificationId && !!verification;
+
+  useEffect(() => {
+    if (!verification || prefilledRef.current) return;
+    prefilledRef.current = true;
+    setTo(verification.email);
+    setSubject("VerifyID — Your Identity Has Been Verified");
+    setHeadline("Identity Verified");
+    setBodyHtml(
+      `<p>Hello ${verification.name},</p><p>We are pleased to confirm that your identity verification has been completed successfully.</p><p>Your verification photos are included in this email for your records.</p>`,
+    );
+    setAccentColor("#10b981");
+  }, [verification]);
+
   const effectiveFrom = from || defaults?.defaultFrom || "VerifyID <onboarding@resend.dev>";
 
-  const sendMutation = trpc.email.sendCustom.useMutation({
-    onSuccess: (data) => {
-      if (data.sent && data.id) {
-        setResult({ ok: true, message: `Email delivered (Resend ID: ${data.id})` });
-      } else if (data.sent) {
-        setResult({ ok: true, message: "Email accepted by Resend" });
-      } else {
-        setResult({
-          ok: false,
-          message: data.error || "Email could not be sent. Check sender domain in Resend.",
-        });
-      }
-    },
-    onError: (err) => {
-      setResult({ ok: false, message: err.message });
-    },
+  const sendCustomMutation = trpc.email.sendCustom.useMutation({
+    onSuccess: (data) => handleSendResult(data, setResult),
+    onError: (err) => setResult({ ok: false, message: err.message }),
   });
 
+  const sendConfirmationMutation = trpc.verification.sendConfirmation.useMutation({
+    onSuccess: (data) => {
+      handleSendResult(data, setResult);
+      if (data.sent) void utils.verification.listForAdmin.invalidate();
+    },
+    onError: (err) => setResult({ ok: false, message: err.message }),
+  });
+
+  const isSending = sendCustomMutation.isPending || sendConfirmationMutation.isPending;
+
+  const previewImages = useMemo(() => {
+    const urls: string[] = [];
+    if (verification?.livenessImageUrl) urls.push(verification.livenessImageUrl);
+    if (verification?.idImageUrl) urls.push(verification.idImageUrl);
+    return [...urls, ...attachmentUrls];
+  }, [verification, attachmentUrls]);
+
   const previewHtml = useMemo(
-    () => buildPreviewHtml(headline, bodyHtml, footerNote, accentColor, attachmentUrls),
-    [headline, bodyHtml, footerNote, accentColor, attachmentUrls],
+    () => buildPreviewHtml(headline, bodyHtml, footerNote, accentColor, previewImages, verificationMode),
+    [headline, bodyHtml, footerNote, accentColor, previewImages, verificationMode],
   );
 
   const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -159,14 +162,30 @@ export default function ComposeEmail() {
 
   const handleSend = () => {
     setResult(null);
-    if (!to.trim() || !subject.trim() || !headline.trim() || !bodyHtml.trim()) {
+    const recipient = verificationMode ? verification?.email : to.trim();
+    if (!recipient || !subject.trim() || !headline.trim() || !bodyHtml.trim()) {
       setResult({ ok: false, message: "Please fill in receiver, subject, headline, and body." });
       return;
     }
 
-    sendMutation.mutate({
+    if (verificationMode && verificationId) {
+      sendConfirmationMutation.mutate({
+        id: verificationId,
+        from: effectiveFrom,
+        subject: subject.trim(),
+        headline: headline.trim(),
+        bodyHtml: bodyHtml.trim(),
+        footerNote: footerNote.trim() || undefined,
+        accentColor,
+        replyTo: replyTo.trim() || undefined,
+        extraAttachmentUrls: attachmentUrls.length ? attachmentUrls : undefined,
+      });
+      return;
+    }
+
+    sendCustomMutation.mutate({
       from: effectiveFrom,
-      to: to.trim(),
+      to: recipient,
       subject: subject.trim(),
       headline: headline.trim(),
       bodyHtml: bodyHtml.trim(),
@@ -188,7 +207,10 @@ export default function ComposeEmail() {
   if (!adminStatus?.isAdmin) {
     return (
       <div className="px-4 py-16 w-full max-w-full overflow-x-hidden">
-        <AdminLoginGate onSuccess={() => void refetchAdmin()} />
+        <AdminLoginGate
+          description="Enter the admin password to compose and send emails."
+          onSuccess={() => void refetchAdmin()}
+        />
       </div>
     );
   }
@@ -201,25 +223,47 @@ export default function ComposeEmail() {
             <Mail className="w-5 h-5 text-violet-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-100">Compose Email</h1>
-            <p className="text-xs text-slate-500">Admin — send via Resend</p>
+            <h1 className="text-xl font-bold text-slate-100">
+              {verificationMode ? "Send confirmation email" : "Compose Email"}
+            </h1>
+            <p className="text-xs text-slate-500">
+              {verificationMode
+                ? `To ${verification?.name} — verification photos included automatically`
+                : "Admin — send via Resend"}
+            </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-slate-700 text-slate-400 shrink-0"
-          onClick={() => logoutMutation.mutate()}
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign out
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          {verificationMode && (
+            <Link to="/admin">
+              <Button variant="outline" size="sm" className="border-slate-700 text-slate-400">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to reviews
+              </Button>
+            </Link>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-slate-700 text-slate-400"
+            onClick={() => logoutMutation.mutate()}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign out
+          </Button>
+        </div>
       </div>
 
       {!defaults?.resendConfigured && (
         <p className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mb-6 break-words">
           RESEND_API_KEY is not set on Railway — emails cannot be delivered.
         </p>
+      )}
+
+      {verificationMode && (
+        <div className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/25 rounded-lg px-3 py-2 mb-6">
+          Live verification and ID photos will be embedded in the email automatically.
+        </div>
       )}
 
       <div className="grid lg:grid-cols-2 gap-6 w-full min-w-0">
@@ -235,9 +279,6 @@ export default function ComposeEmail() {
               placeholder={defaults?.defaultFrom}
               className="bg-slate-900 border-slate-700 text-slate-100"
             />
-            <p className="text-[11px] text-slate-500 break-words">
-              Must be verified in Resend. Default: {defaults?.defaultFrom}
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -245,10 +286,11 @@ export default function ComposeEmail() {
             <Input
               id="to"
               type="email"
-              value={to}
+              value={verificationMode ? verification?.email ?? "" : to}
               onChange={(e) => setTo(e.target.value)}
               placeholder="recipient@example.com"
-              className="bg-slate-900 border-slate-700 text-slate-100"
+              disabled={verificationMode}
+              className="bg-slate-900 border-slate-700 text-slate-100 disabled:opacity-60"
             />
           </div>
 
@@ -322,14 +364,26 @@ export default function ComposeEmail() {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-slate-300">Photo attachments</Label>
+            <Label className="text-slate-300">
+              {verificationMode ? "Extra photo attachments (optional)" : "Photo attachments"}
+            </Label>
             <div className="flex flex-wrap gap-2">
-              {attachmentUrls.map((url, i) => (
+              {verificationMode && verification?.livenessImageUrl && (
+                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-emerald-500/40 opacity-80">
+                  <img src={verification.livenessImageUrl} alt="Liveness" className="w-full h-full object-cover" />
+                </div>
+              )}
+              {verificationMode && verification?.idImageUrl && (
+                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-emerald-500/40 opacity-80">
+                  <img src={verification.idImageUrl} alt="ID" className="w-full h-full object-cover" />
+                </div>
+              )}
+              {attachmentUrls.map((url) => (
                 <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-700">
                   <img src={url} alt="" className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => setAttachmentUrls((prev) => prev.filter((_, idx) => idx !== i))}
+                    onClick={() => setAttachmentUrls((prev) => prev.filter((u) => u !== url))}
                     className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5"
                   >
                     <X className="w-3 h-3 text-white" />
@@ -362,10 +416,10 @@ export default function ComposeEmail() {
 
           <Button
             onClick={handleSend}
-            disabled={sendMutation.isPending || uploading}
+            disabled={isSending || uploading}
             className="w-full btn-glow font-semibold"
           >
-            {sendMutation.isPending ? (
+            {isSending ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Sending...
@@ -373,7 +427,7 @@ export default function ComposeEmail() {
             ) : (
               <>
                 <Send className="w-4 h-4 mr-2" />
-                Send email
+                {verificationMode ? "Send confirmation email" : "Send email"}
               </>
             )}
           </Button>

@@ -256,7 +256,7 @@ export default function Verify() {
             <div>
               <h3 className="text-xl font-semibold text-slate-100 mb-2">Submitted for Review</h3>
               <p className="text-slate-400 max-w-sm mx-auto">
-                Your verification has been submitted. You will receive a confirmation email once your ID is verified.
+                Your verification has been submitted. Our team will contact you once your identity has been confirmed.
               </p>
             </div>
             <Button className="bg-violet-500 hover:bg-violet-600 text-white" onClick={() => navigate("/dashboard")}>

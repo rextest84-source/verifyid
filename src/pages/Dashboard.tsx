@@ -71,14 +71,20 @@ export default function Dashboard() {
       key: "submit",
       label: "Submitted for Review",
       icon: FileCheck,
-      done: verification?.status === "pending_review" || verification?.status === "approved",
+      done:
+        verification?.status === "pending_review" ||
+        verification?.status === "approved" ||
+        !!verification?.confirmationSentAt,
       time: null,
     },
   ];
 
   const completed = steps.filter((s) => s.done).length;
   const percent = Math.round((completed / steps.length) * 100);
-  const isSubmitted = verification?.status === "pending_review" || verification?.status === "approved";
+  const isSubmitted =
+    verification?.status === "pending_review" ||
+    verification?.status === "approved" ||
+    !!verification?.confirmationSentAt;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -142,13 +148,27 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {verification?.status === "approved" && (
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4 mb-8 flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-emerald-300">Identity Confirmed</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Your identity verification is complete.
+              {verification.confirmationSentAt &&
+                ` Confirmation was sent on ${new Date(verification.confirmationSentAt).toLocaleDateString()}.`}
+            </p>
+          </div>
+        </div>
+      )}
+
       {verification?.status === "pending_review" && (
         <div className="rounded-xl border border-sky-500/20 bg-sky-500/5 px-5 py-4 mb-8 flex items-start gap-3">
           <Clock className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-sky-300">Under Review</p>
             <p className="text-xs text-slate-400 mt-1">
-              Your documents are being reviewed. You will receive a confirmation email at {verification?.email} once the verification is complete.
+              Your documents are being reviewed. Our team will contact you at {verification?.email} once your identity has been confirmed.
             </p>
           </div>
         </div>

@@ -329,6 +329,97 @@ function wrapCustomEmailHtml(data: {
 </body></html>`;
 }
 
+export type VerificationConfirmationInput = {
+  name: string;
+  email: string;
+  livenessImageUrl: string | null;
+  idImageUrl: string | null;
+  from?: string;
+  subject: string;
+  headline: string;
+  bodyHtml: string;
+  footerNote?: string;
+  accentColor?: string;
+  replyTo?: string;
+  extraAttachmentUrls?: string[];
+};
+
+export async function sendVerificationConfirmation(
+  input: VerificationConfirmationInput,
+): Promise<EmailSendResult> {
+  log("CONFIRM_START", { to: input.email, name: input.name, subject: input.subject });
+
+  const [livenessAsset, idAsset] = await Promise.all([
+    loadImageAsset(input.livenessImageUrl, "liveness-selfie.jpg", "liveness-photo"),
+    loadImageAsset(input.idImageUrl, "id-document.jpg", "id-photo"),
+  ]);
+
+  const extraAssets: ImageAsset[] = [];
+  if (input.extraAttachmentUrls?.length) {
+    for (let i = 0; i < input.extraAttachmentUrls.length; i++) {
+      const asset = await loadImageAsset(
+        input.extraAttachmentUrls[i],
+        `extra-${i + 1}.jpg`,
+        `extra-${i + 1}`,
+      );
+      if (asset) extraAssets.push(asset);
+    }
+  }
+
+  const attachmentList = toAttachments(livenessAsset, idAsset, ...extraAssets);
+
+  const verificationBlocks = [
+    imagePreviewBlock(livenessAsset, "Live Verification Photo", "Live verification photo unavailable."),
+    imagePreviewBlock(idAsset, "ID Document Photo", "ID document photo unavailable."),
+  ].join("");
+
+  const accent = input.accentColor || "#10b981";
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:32px 16px;">
+<table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;">
+<tr><td style="background:linear-gradient(135deg,${accent},#7c3aed);border-radius:16px 16px 0 0;padding:28px 24px;text-align:center;">
+  <h1 style="font-size:22px;font-weight:700;margin:0;color:#ffffff;">${input.headline}</h1>
+  <p style="font-size:13px;color:rgba(255,255,255,0.85);margin:8px 0 0 0;">Identity verification for ${input.name}</p>
+</td></tr>
+<tr><td style="background:#ffffff;padding:28px 24px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+  <div style="font-size:15px;line-height:1.65;color:#334155;">${input.bodyHtml}</div>
+</td></tr>
+<tr><td style="height:16px;"></td></tr>
+<tr><td style="padding:0 24px;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr><td style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:14px;text-align:center;">
+      <p style="font-size:13px;font-weight:700;color:#047857;margin:0;">✓ Identity Verified</p>
+    </td></tr>
+  </table>
+</td></tr>
+<tr><td style="height:16px;"></td></tr>
+<tr><td style="padding:0 24px;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">${verificationBlocks}</table>
+</td></tr>
+${extraAssets.length ? `<tr><td style="padding:16px 24px 0;">${extraAssets.map((img) => `<img src="cid:${img.cid}" alt="${img.filename}" style="max-width:100%;border-radius:12px;border:1px solid #e2e8f0;display:block;margin-top:12px;" />`).join("")}</td></tr>` : ""}
+<tr><td style="background:#f1f5f9;padding:20px 24px;border-radius:0 0 16px 16px;border:1px solid #e2e8f0;border-top:none;text-align:center;margin-top:16px;">
+  <p style="font-size:12px;color:#64748b;margin:0;">${input.footerNote || "Sent via VerifyID"}</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+  const result = await sendEmail({
+    from: input.from || env.resendFromEmail,
+    to: input.email,
+    subject: input.subject,
+    html,
+    replyTo: input.replyTo,
+    attachments: attachmentList,
+  });
+
+  if (result.sent) log("CONFIRM_SENT", { to: input.email, id: result.id });
+  else log("CONFIRM_ERROR", { to: input.email, err: result.error });
+  return result;
+}
+
 export async function sendCustomEmail(input: CustomEmailInput): Promise<EmailSendResult> {
   const recipients = Array.isArray(input.to) ? input.to : [input.to];
   log("CUSTOM_START", { from: input.from, to: recipients, subject: input.subject });

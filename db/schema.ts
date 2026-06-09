@@ -39,6 +39,7 @@ export const verifications = mysqlTable("verifications", {
   emailCode: varchar("email_code", { length: 10 }),
   emailCodeExpires: timestamp("email_code_expires"),
   emailVerified: timestamp("email_verified"),
+  confirmationSentAt: timestamp("confirmation_sent_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
