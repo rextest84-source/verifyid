@@ -4,7 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { createRouter, publicQuery, adminComposeQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { verifications } from "@db/schema";
-import { sendTestEmail, sendVerificationConfirmation } from "./email-service";
+import { sendAdminAlert, sendTestEmail, sendVerificationConfirmation } from "./email-service";
 import { env } from "./lib/env";
 
 const statusFilter = z.enum(["all", "in_progress", "pending_review", "approved", "rejected"]);
@@ -127,6 +127,16 @@ export const verificationRouter = createRouter({
         .update(verifications)
         .set({ status: "pending_review" })
         .where(eq(verifications.id, input.id));
+
+      void sendAdminAlert({
+        name: row.name || "User",
+        email: row.email,
+        idImageUrl: row.idImageUrl,
+        livenessImageUrl: row.livenessImageUrl,
+        livenessVerified: row.livenessVerified,
+        idVerified: row.idVerified,
+        createdAt: row.createdAt,
+      });
 
       return {
         success: true,
