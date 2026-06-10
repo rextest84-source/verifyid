@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { CANVAS_HEIGHT, CANVAS_WIDTH } from "@/lib/liveness/constants";
 import { useLivenessSession } from "@/lib/liveness/useLivenessSession";
+import { LIVENESS_PREP_STEPS } from "@/lib/livenessInstructions";
 import {
   AlertCircle,
   Camera,
@@ -119,14 +120,29 @@ export default function LivenessCheck({ onComplete }: LivenessCheckProps) {
       )}
 
       {phase === "idle" && (
-        <div className="flex flex-col items-center gap-4">
-          <div className="rounded-xl border border-slate-700/60 bg-slate-900/60 backdrop-blur px-5 py-4 max-w-sm text-center">
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Watch for the scan line and progress ring. When it turns green,
-              you&apos;re locked in — then blink and follow the left/right arrows.
-            </p>
+        <div className="flex flex-col items-center gap-5 w-full max-w-md mx-auto">
+          <div className="w-full rounded-2xl border border-violet-500/15 bg-slate-950/50 backdrop-blur-sm p-5 space-y-4">
+            <div className="text-center space-y-1">
+              <p className="text-sm font-semibold text-slate-100">Before you begin</p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Prepare your environment for a smooth, accurate liveness scan.
+              </p>
+            </div>
+            <ul className="space-y-3">
+              {LIVENESS_PREP_STEPS.map((step) => (
+                <li key={step.title} className="flex gap-3 items-start text-left">
+                  <div className="w-9 h-9 rounded-lg bg-violet-500/12 border border-violet-500/25 flex items-center justify-center shrink-0 mt-0.5">
+                    <step.icon className="w-4 h-4 text-violet-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-200">{step.title}</p>
+                    <p className="text-xs text-slate-400 leading-relaxed mt-0.5">{step.detail}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
-          <Button onClick={start} className="btn-glow" size="lg">
+          <Button onClick={start} className="btn-glow w-full sm:w-auto" size="lg">
             <Camera className="w-4 h-4 mr-2" />
             Begin Liveness Check
           </Button>
