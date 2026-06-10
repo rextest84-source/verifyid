@@ -80,6 +80,7 @@ export default function ComposeEmail() {
   const [replyTo, setReplyTo] = useState("");
   const [subject, setSubject] = useState("");
   const [headline, setHeadline] = useState("");
+  const [subtitle, setSubtitle] = useState("");
   const [bodyHtml, setBodyHtml] = useState("<p>Hello,</p><p>Your message here.</p>");
   const [brandLabel, setBrandLabel] = useState("VerifyID");
   const [footerNote, setFooterNote] = useState("Sent via VerifyID");
@@ -96,6 +97,7 @@ export default function ComposeEmail() {
     setTo(verification.email);
     setSubject("VerifyID — Your Identity Has Been Verified");
     setHeadline("Identity Verified");
+    setSubtitle(`Identity verification for ${verification.name}`);
     setBodyHtml(buildDefaultConfirmationBodyHtml(verification.name));
     setAccentColor("#7c3aed");
   }, [verification]);
@@ -140,13 +142,13 @@ export default function ComposeEmail() {
         brandLabel,
         footerNote,
         accentColor,
-        subtitle: verificationMode && verification ? `Identity verification for ${verification.name}` : undefined,
+        subtitle: subtitle.trim() || undefined,
         showVerifiedBadge: verificationMode,
         imageDataUrls: verificationMode
           ? []
           : attachmentUrls.map((u) => (u.startsWith("/") ? u : `/${u}`)),
       }),
-    [headline, bodyHtml, brandLabel, footerNote, accentColor, verificationMode, verification, attachmentUrls],
+    [headline, subtitle, bodyHtml, brandLabel, footerNote, accentColor, verificationMode, attachmentUrls],
   );
 
   const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,6 +178,7 @@ export default function ComposeEmail() {
         from: effectiveFrom,
         subject: subject.trim(),
         headline: headline.trim(),
+        subtitle: subtitle.trim() || undefined,
         bodyHtml: bodyHtml.trim(),
         brandLabel: brandLabel.trim() || undefined,
         footerNote: footerNote.trim() || undefined,
@@ -192,6 +195,7 @@ export default function ComposeEmail() {
       to: recipient,
       subject: subject.trim(),
       headline: headline.trim(),
+      subtitle: subtitle.trim() || undefined,
       bodyHtml: bodyHtml.trim(),
       brandLabel: brandLabel.trim() || undefined,
       footerNote: footerNote.trim() || undefined,
@@ -338,6 +342,18 @@ export default function ComposeEmail() {
               onChange={(e) => setHeadline(e.target.value)}
               className="bg-slate-900 border-slate-700 text-slate-100"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="subtitle" className="text-slate-300">Header subtitle</Label>
+            <Input
+              id="subtitle"
+              value={subtitle}
+              onChange={(e) => setSubtitle(e.target.value)}
+              placeholder="Identity verification for Jane Doe"
+              className="bg-slate-900 border-slate-700 text-slate-100"
+            />
+            <p className="text-xs text-slate-500">Line below the headline in the purple header — edit the name if needed</p>
           </div>
 
           <div className="space-y-2">

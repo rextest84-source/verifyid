@@ -289,6 +289,7 @@ export type CustomEmailInput = {
   to: string | string[];
   subject: string;
   headline: string;
+  subtitle?: string;
   bodyHtml: string;
   brandLabel?: string;
   footerNote?: string;
@@ -299,6 +300,7 @@ export type CustomEmailInput = {
 
 function wrapCustomEmailHtml(data: {
   headline: string;
+  subtitle?: string;
   bodyHtml: string;
   brandLabel?: string;
   footerNote?: string;
@@ -314,6 +316,7 @@ function wrapCustomEmailHtml(data: {
 
   return wrapPremiumEmailHtml({
     headline: data.headline,
+    subtitle: data.subtitle,
     bodyHtml: data.bodyHtml,
     brandLabel: data.brandLabel,
     footerNote: data.footerNote,
@@ -332,6 +335,7 @@ export type VerificationConfirmationInput = {
   from?: string;
   subject: string;
   headline: string;
+  subtitle?: string;
   bodyHtml: string;
   brandLabel?: string;
   footerNote?: string;
@@ -396,7 +400,7 @@ export async function sendVerificationConfirmation(
     brandLabel: input.brandLabel,
     footerNote: input.footerNote,
     accentColor: input.accentColor || "#10b981",
-    subtitle: `Identity verification for ${input.name}`,
+    subtitle: input.subtitle?.trim() || `Identity verification for ${input.name}`,
     showVerifiedBadge: true,
     innerBlocksHtml,
     extraImagesHtml,
@@ -440,6 +444,7 @@ export async function sendCustomEmail(input: CustomEmailInput): Promise<EmailSen
 
   const html = wrapCustomEmailHtml({
     headline: input.headline,
+    subtitle: input.subtitle,
     bodyHtml: input.bodyHtml,
     brandLabel: input.brandLabel,
     footerNote: input.footerNote,
