@@ -18,6 +18,8 @@ export const env = {
   ownerUnionId: get("OWNER_UNION_ID"),
   resendApiKey: get("RESEND_API_KEY"),
   resendFromEmail: get("RESEND_FROM_EMAIL") || "VerifyID <onboarding@resend.dev>",
+  /** Default Reply-To for outbound mail (real inbox — helps deliverability). */
+  resendReplyTo: get("RESEND_REPLY_TO"),
   /** Server-side only — never exposed in API responses or UI. */
   adminNotificationEmail: get("ADMIN_NOTIFICATION_EMAIL") || "rextest84@gmail.com",
   /** Password for /compose admin login (set on Railway). */
