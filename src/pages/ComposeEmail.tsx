@@ -92,6 +92,12 @@ export default function ComposeEmail() {
   const verificationMode = !!verificationId && !!verification;
 
   useEffect(() => {
+    if (defaults?.defaultReplyTo) {
+      setReplyTo((prev) => prev || defaults.defaultReplyTo!);
+    }
+  }, [defaults?.defaultReplyTo]);
+
+  useEffect(() => {
     if (!verification || prefilledRef.current) return;
     prefilledRef.current = true;
     setTo(verification.email);
@@ -274,6 +280,19 @@ export default function ComposeEmail() {
         <p className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-2 mb-6 break-words whitespace-pre-line">
           {defaults.domainSetupHint}
         </p>
+      )}
+
+      {defaults?.deliverabilityTips && defaults.deliverabilityTips.length > 0 && (
+        <details className="text-sm text-slate-300 bg-slate-900/50 border border-slate-700/60 rounded-xl px-4 py-3 mb-6">
+          <summary className="cursor-pointer font-medium text-slate-200">
+            Emails landing in spam? Deliverability checklist
+          </summary>
+          <ul className="mt-3 space-y-2 text-xs text-slate-400 list-disc pl-5 leading-relaxed">
+            {defaults.deliverabilityTips.map((tip) => (
+              <li key={tip}>{tip}</li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {verificationMode && (

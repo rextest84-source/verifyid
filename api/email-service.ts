@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { readFile } from "fs/promises";
 import path from "path";
 import { env } from "./lib/env";
+import { buildPremiumEmailPlainText, htmlToPlainText } from "./email-plaintext";
 import { wrapPremiumEmailHtml } from "./email-template";
 
 let resendClient: Resend | null = null;
@@ -117,13 +118,20 @@ async function sendEmail(payload: {
       inlineContentId: a.inlineContentId,
     }));
 
+    const text =
+      payload.text ?? (payload.html ? htmlToPlainText(payload.html) : undefined);
+    const replyTo = payload.replyTo || env.resendReplyTo || undefined;
+
     const result = await resend.emails.send({
       from,
       to: payload.to,
       subject: payload.subject,
       html: payload.html,
-      text: payload.text,
-      replyTo: payload.replyTo,
+      text,
+      replyTo,
+      headers: {
+        "X-Auto-Response-Suppress": "OOF, AutoReply",
+      },
       attachments,
     });
 
@@ -394,16 +402,25 @@ export async function sendVerificationConfirmation(
         .join("")
     : "";
 
+  const subtitle = input.subtitle?.trim() || `Identity verification for ${input.name}`;
   const html = wrapPremiumEmailHtml({
     headline: input.headline,
     bodyHtml: input.bodyHtml,
     brandLabel: input.brandLabel,
     footerNote: input.footerNote,
     accentColor: input.accentColor || "#10b981",
-    subtitle: input.subtitle?.trim() || `Identity verification for ${input.name}`,
+    subtitle,
     showVerifiedBadge: true,
     innerBlocksHtml,
     extraImagesHtml,
+  });
+  const text = buildPremiumEmailPlainText({
+    brandLabel: input.brandLabel,
+    headline: input.headline,
+    subtitle,
+    bodyHtml: input.bodyHtml,
+    footerNote: input.footerNote,
+    showVerifiedBadge: true,
   });
 
   const result = await sendEmail({
@@ -411,6 +428,7 @@ export async function sendVerificationConfirmation(
     to: input.email,
     subject: input.subject,
     html,
+    text,
     replyTo: input.replyTo,
     attachments: attachmentList,
   });
@@ -451,12 +469,20 @@ export async function sendCustomEmail(input: CustomEmailInput): Promise<EmailSen
     accentColor: input.accentColor || "#8b5cf6",
     inlineImages,
   });
+  const text = buildPremiumEmailPlainText({
+    brandLabel: input.brandLabel,
+    headline: input.headline,
+    subtitle: input.subtitle,
+    bodyHtml: input.bodyHtml,
+    footerNote: input.footerNote,
+  });
 
   const result = await sendEmail({
     from: input.from,
     to: recipients,
     subject: input.subject,
     html,
+    text,
     replyTo: input.replyTo,
     attachments: attachmentList,
   });

@@ -21,11 +21,20 @@ export const emailRouter = createRouter({
     const isTestSender = /@resend\.dev>/i.test(from) || from.includes("onboarding@resend.dev");
     return {
       defaultFrom: from,
+      defaultReplyTo: env.resendReplyTo || null,
       resendConfigured: !!env.resendApiKey,
       isTestSender,
       domainSetupHint: isTestSender
         ? "Verify dsc-infoverifyid.com at resend.com/domains and set RESEND_FROM_EMAIL to VerifyID <noreply@dsc-infoverifyid.com> on Railway."
         : null,
+      deliverabilityTips: [
+        "Sender must be on your verified domain (e.g. noreply@dsc-infoverifyid.com) — never resend.dev in production.",
+        "In Resend → Domains, confirm SPF, DKIM, and DMARC all show Verified (DNS on Netlify).",
+        "Set RESEND_REPLY_TO on Railway to a real inbox you monitor (e.g. support@yourdomain.com).",
+        "Ask recipients to mark the first message as Not spam and add the sender to contacts.",
+        "New domains need a warm-up: send to engaged contacts first; avoid bulk blasts.",
+        "Register dsc-infoverifyid.com in Google Postmaster Tools to monitor reputation.",
+      ],
     };
   }),
 
