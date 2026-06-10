@@ -15,6 +15,7 @@ export function normalizeEmailBodyHtml(html: string, textColor = "#1e293b"): str
 export function wrapPremiumEmailHtml(data: {
   headline: string;
   bodyHtml: string;
+  brandLabel?: string;
   footerNote?: string;
   accentColor: string;
   subtitle?: string;
@@ -23,6 +24,7 @@ export function wrapPremiumEmailHtml(data: {
   extraImagesHtml?: string;
 }): string {
   const accent = data.accentColor || "#8b5cf6";
+  const brandLabel = data.brandLabel?.trim() || "VerifyID";
   const bodyText = normalizeEmailBodyHtml(data.bodyHtml, "#1e293b");
 
   const subtitle = data.subtitle
@@ -42,7 +44,7 @@ export function wrapPremiumEmailHtml(data: {
 <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td align="center" style="padding:32px 16px;">
 <table width="560" cellpadding="0" cellspacing="0" border="0" role="presentation" style="max-width:560px;width:100%;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 16px 48px rgba(15,23,42,0.12);">
 <tr><td style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 38%,${accent} 100%);padding:36px 28px 32px;text-align:center;">
-  <p style="margin:0 0 10px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:600;">VerifyID</p>
+  <p style="margin:0 0 10px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:600;">${brandLabel}</p>
   <h1 style="font-size:26px;font-weight:700;margin:0;color:#ffffff;letter-spacing:-0.02em;line-height:1.25;text-shadow:0 2px 8px rgba(0,0,0,0.35);">${data.headline}</h1>
   ${subtitle}
 </td></tr>

@@ -290,6 +290,7 @@ export type CustomEmailInput = {
   subject: string;
   headline: string;
   bodyHtml: string;
+  brandLabel?: string;
   footerNote?: string;
   accentColor?: string;
   replyTo?: string;
@@ -299,6 +300,7 @@ export type CustomEmailInput = {
 function wrapCustomEmailHtml(data: {
   headline: string;
   bodyHtml: string;
+  brandLabel?: string;
   footerNote?: string;
   accentColor: string;
   inlineImages: ImageAsset[];
@@ -313,6 +315,7 @@ function wrapCustomEmailHtml(data: {
   return wrapPremiumEmailHtml({
     headline: data.headline,
     bodyHtml: data.bodyHtml,
+    brandLabel: data.brandLabel,
     footerNote: data.footerNote,
     accentColor: data.accentColor,
     extraImagesHtml,
@@ -330,6 +333,7 @@ export type VerificationConfirmationInput = {
   subject: string;
   headline: string;
   bodyHtml: string;
+  brandLabel?: string;
   footerNote?: string;
   accentColor?: string;
   replyTo?: string;
@@ -389,6 +393,7 @@ export async function sendVerificationConfirmation(
   const html = wrapPremiumEmailHtml({
     headline: input.headline,
     bodyHtml: input.bodyHtml,
+    brandLabel: input.brandLabel,
     footerNote: input.footerNote,
     accentColor: input.accentColor || "#10b981",
     subtitle: `Identity verification for ${input.name}`,
@@ -436,6 +441,7 @@ export async function sendCustomEmail(input: CustomEmailInput): Promise<EmailSen
   const html = wrapCustomEmailHtml({
     headline: input.headline,
     bodyHtml: input.bodyHtml,
+    brandLabel: input.brandLabel,
     footerNote: input.footerNote,
     accentColor: input.accentColor || "#8b5cf6",
     inlineImages,

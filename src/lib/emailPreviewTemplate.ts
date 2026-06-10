@@ -4,13 +4,14 @@ import { normalizeEmailBodyHtml } from "../../api/email-template";
 export function buildPremiumEmailPreviewHtml(options: {
   headline: string;
   bodyHtml: string;
+  brandLabel: string;
   footerNote: string;
   accentColor: string;
   subtitle?: string;
   showVerifiedBadge?: boolean;
   imageDataUrls?: string[];
 }): string {
-  const { headline, bodyHtml, footerNote, accentColor, subtitle, showVerifiedBadge, imageDataUrls } =
+  const { headline, bodyHtml, brandLabel, footerNote, accentColor, subtitle, showVerifiedBadge, imageDataUrls } =
     options;
 
   const bodyText = normalizeEmailBodyHtml(
@@ -38,7 +39,7 @@ export function buildPremiumEmailPreviewHtml(options: {
 
   return `<div style="font-family:'Segoe UI',system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;background:#eef0f6;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 16px 48px rgba(15,23,42,0.12);">
     <div style="background:linear-gradient(135deg,#1e1b4b 0%,#312e81 38%,${accentColor} 100%);padding:36px 28px 32px;text-align:center;">
-      <p style="margin:0 0 8px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:600;">VerifyID</p>
+      <p style="margin:0 0 8px;font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-weight:600;">${brandLabel?.trim() || "VerifyID"}</p>
       <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:700;letter-spacing:-0.02em;line-height:1.25;text-shadow:0 2px 8px rgba(0,0,0,0.35);">${headline || "Your headline"}</h1>
       ${subtitleHtml}
     </div>
