@@ -95,7 +95,7 @@ export default function ComposeEmail() {
     setSubject("VerifyID — Your Identity Has Been Verified");
     setHeadline("Identity Verified");
     setBodyHtml(
-      `<p>Hello ${verification.name},</p><p>We are pleased to confirm that your identity verification has been completed successfully.</p>`,
+      `<p style="color:#1e293b;">Hello ${verification.name},</p><p style="color:#1e293b;">We are pleased to confirm that your identity verification has been completed successfully.</p>`,
     );
     setAccentColor("#7c3aed");
   }, [verification]);
@@ -139,12 +139,13 @@ export default function ComposeEmail() {
         bodyHtml,
         footerNote,
         accentColor,
+        subtitle: verificationMode && verification ? `Identity verification for ${verification.name}` : undefined,
         showVerifiedBadge: verificationMode,
         imageDataUrls: verificationMode
           ? []
           : attachmentUrls.map((u) => (u.startsWith("/") ? u : `/${u}`)),
       }),
-    [headline, bodyHtml, footerNote, accentColor, verificationMode, attachmentUrls],
+    [headline, bodyHtml, footerNote, accentColor, verificationMode, verification, attachmentUrls],
   );
 
   const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
