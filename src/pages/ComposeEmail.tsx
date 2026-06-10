@@ -80,6 +80,7 @@ export default function ComposeEmail() {
   const [subject, setSubject] = useState("");
   const [headline, setHeadline] = useState("");
   const [bodyHtml, setBodyHtml] = useState("<p>Hello,</p><p>Your message here.</p>");
+  const [brandLabel, setBrandLabel] = useState("VerifyID");
   const [footerNote, setFooterNote] = useState("Sent via VerifyID");
   const [accentColor, setAccentColor] = useState<string>(ACCENT_PRESETS[0]);
   const [attachmentUrls, setAttachmentUrls] = useState<string[]>([]);
@@ -137,6 +138,7 @@ export default function ComposeEmail() {
       buildPremiumEmailPreviewHtml({
         headline,
         bodyHtml,
+        brandLabel,
         footerNote,
         accentColor,
         subtitle: verificationMode && verification ? `Identity verification for ${verification.name}` : undefined,
@@ -145,7 +147,7 @@ export default function ComposeEmail() {
           ? []
           : attachmentUrls.map((u) => (u.startsWith("/") ? u : `/${u}`)),
       }),
-    [headline, bodyHtml, footerNote, accentColor, verificationMode, verification, attachmentUrls],
+    [headline, bodyHtml, brandLabel, footerNote, accentColor, verificationMode, verification, attachmentUrls],
   );
 
   const handleAttach = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,6 +178,7 @@ export default function ComposeEmail() {
         subject: subject.trim(),
         headline: headline.trim(),
         bodyHtml: bodyHtml.trim(),
+        brandLabel: brandLabel.trim() || undefined,
         footerNote: footerNote.trim() || undefined,
         accentColor,
         replyTo: replyTo.trim() || undefined,
@@ -191,6 +194,7 @@ export default function ComposeEmail() {
       subject: subject.trim(),
       headline: headline.trim(),
       bodyHtml: bodyHtml.trim(),
+      brandLabel: brandLabel.trim() || undefined,
       footerNote: footerNote.trim() || undefined,
       accentColor,
       replyTo: replyTo.trim() || undefined,
@@ -346,6 +350,18 @@ export default function ComposeEmail() {
               rows={8}
               className="bg-slate-900 border-slate-700 text-slate-100 font-mono text-sm resize-y min-h-[140px]"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="brandLabel" className="text-slate-300">Header brand</Label>
+            <Input
+              id="brandLabel"
+              value={brandLabel}
+              onChange={(e) => setBrandLabel(e.target.value)}
+              placeholder="VerifyID"
+              className="bg-slate-900 border-slate-700 text-slate-100"
+            />
+            <p className="text-xs text-slate-500">Small label above the headline in the email header</p>
           </div>
 
           <div className="space-y-2">

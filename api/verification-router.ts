@@ -219,6 +219,7 @@ export const verificationRouter = createRouter({
         subject: z.string().min(1).max(200),
         headline: z.string().min(1).max(200),
         bodyHtml: z.string().min(1).max(20000),
+        brandLabel: z.string().max(100).optional(),
         footerNote: z.string().max(500).optional(),
         accentColor: z
           .string()
@@ -259,6 +260,7 @@ export const verificationRouter = createRouter({
         subject: input.subject,
         headline: input.headline,
         bodyHtml: input.bodyHtml,
+        brandLabel: input.brandLabel,
         footerNote: input.footerNote,
         accentColor: input.accentColor,
         replyTo: input.replyTo,
