@@ -166,7 +166,7 @@ export default function ComposeEmail() {
 
   const handleSend = () => {
     setResult(null);
-    const recipient = verificationMode ? verification?.email : to.trim();
+    const recipient = to.trim();
     if (!recipient || !subject.trim() || !headline.trim() || !bodyHtml.trim()) {
       setResult({ ok: false, message: "Please fill in receiver, subject, headline, and body." });
       return;
@@ -175,6 +175,7 @@ export default function ComposeEmail() {
     if (verificationMode && verificationId) {
       sendConfirmationMutation.mutate({
         id: verificationId,
+        to: recipient,
         from: effectiveFrom,
         subject: subject.trim(),
         headline: headline.trim(),
@@ -305,12 +306,16 @@ export default function ComposeEmail() {
             <Input
               id="to"
               type="email"
-              value={verificationMode ? verification?.email ?? "" : to}
+              value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder="recipient@example.com"
-              disabled={verificationMode}
-              className="bg-slate-900 border-slate-700 text-slate-100 disabled:opacity-60"
+              className="bg-slate-900 border-slate-700 text-slate-100"
             />
+            {verificationMode && (
+              <p className="text-xs text-slate-500">
+                Prefilled from the submission — change if you need to send to a different address
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

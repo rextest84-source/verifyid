@@ -215,6 +215,7 @@ export const verificationRouter = createRouter({
     .input(
       z.object({
         id: z.number(),
+        to: z.string().email().optional(),
         from: z.string().min(3).optional(),
         subject: z.string().min(1).max(200),
         headline: z.string().min(1).max(200),
@@ -252,7 +253,7 @@ export const verificationRouter = createRouter({
 
       const result = await sendVerificationConfirmation({
         name: row.name,
-        email: row.email,
+        email: input.to?.trim() || row.email,
         livenessImageUrl: row.livenessImageUrl,
         idImageUrl: row.idImageUrl,
         includeLivenessPhoto: input.includeLivenessPhoto ?? false,
