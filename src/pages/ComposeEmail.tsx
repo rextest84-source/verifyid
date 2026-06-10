@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { trpc } from "@/providers/trpc";
 import AdminLoginGate from "@/components/AdminLoginGate";
+import { buildDefaultConfirmationBodyHtml } from "@/lib/defaultConfirmationEmail";
 import { buildPremiumEmailPreviewHtml } from "@/lib/emailPreviewTemplate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,9 +96,7 @@ export default function ComposeEmail() {
     setTo(verification.email);
     setSubject("VerifyID — Your Identity Has Been Verified");
     setHeadline("Identity Verified");
-    setBodyHtml(
-      `<p style="color:#1e293b;">Hello ${verification.name},</p><p style="color:#1e293b;">We are pleased to confirm that your identity verification has been completed successfully.</p>`,
-    );
+    setBodyHtml(buildDefaultConfirmationBodyHtml(verification.name));
     setAccentColor("#7c3aed");
   }, [verification]);
 
